@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wellmanifest.dev/schemas/twin-lifecycle/v1",
+  "$id": "https://wellmanifest.com/schemas/twin-lifecycle/v1",
   "title": "Wellmanifest twin lifecycle contracts v1",
   "description": "Closed contracts for an immutable Digital Twin lifecycle blueprint, its evidence-gated transition requests, its observe-only stage projection and its redacted transition receipts. A lifecycle document records that declared criteria were evaluated. It never grants execution authority, never carries secrets and never turns a score, proposal, simulation or model verdict into evidence.",
   "oneOf": [

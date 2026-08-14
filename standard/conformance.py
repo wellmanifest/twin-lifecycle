@@ -30,7 +30,7 @@ LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
 LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
 LIFECYCLE_PROFILE_DIGEST = "7a2cf7b57adf599c5af313bd073b8aa66601af936114e51cc9758a49e672d5d5"
 SCHEMA_FAMILY = "wellmanifest.twin-lifecycle/v1"
-SCHEMA_URI = "https://wellmanifest.dev/schemas/twin-lifecycle/v1"
+SCHEMA_URI = "https://wellmanifest.com/schemas/twin-lifecycle/v1"
 
 BLUEPRINT_KEYS = {
     "schema", "kind", "blueprintId", "version", "definitionUri", "intent", "immutable",
@@ -477,12 +477,12 @@ def run_all() -> dict[str, Any]:
     pinned = ref_of(blueprint)
     request = {
         "schema": SCHEMA_FAMILY, "kind": "transition-request", "requestId": "request:release-twin",
-        "twinRef": "twin://wellmanifest.dev/generic-all-traits", "blueprint": pinned, "action": "release",
+        "twinRef": "twin://wellmanifest.com/generic-all-traits", "blueprint": pinned, "action": "release",
         "fromStage": "validated", "toStage": "released", "baseRevision": "a" * 40,
-        "requestedBy": {"actorRef": "actor://wellmanifest.dev/release-bot", "actorClass": "service"},
+        "requestedBy": {"actorRef": "actor://wellmanifest.com/release-bot", "actorClass": "service"},
         "evidenceRefs": [
-            "evidence://wellmanifest.dev/conformance/r1",
-            "evidence://wellmanifest.dev/replay-observation/r1",
+            "evidence://wellmanifest.com/conformance/r1",
+            "evidence://wellmanifest.com/replay-observation/r1",
         ],
         "gateDecisionRef": None, "idempotencyKey": "idempotency:release-twin.1",
     }
@@ -498,9 +498,9 @@ def run_all() -> dict[str, Any]:
         "action": "release", "fromStage": "validated", "toStage": "released", "status": "APPROVED",
         "baseRevision": "a" * 40, "aggregateVersion": 13, "evidenceRefs": request["evidenceRefs"],
         "unmetCriteria": [],
-        "approvedBy": {"actorRef": "actor://wellmanifest.dev/owner", "actorClass": "human", "role": "role:release-approver"},
-        "gateDecisionRef": "decision://wellmanifest.dev/gates/release.1",
-        "eventRefs": ["event://wellmanifest.dev/twin/lifecycle-transition-recorded.1"],
+        "approvedBy": {"actorRef": "actor://wellmanifest.com/owner", "actorClass": "human", "role": "role:release-approver"},
+        "gateDecisionRef": "decision://wellmanifest.com/gates/release.1",
+        "eventRefs": ["event://wellmanifest.com/twin/lifecycle-transition-recorded.1"],
         "idempotencyKey": "idempotency:release-twin.1", "authorityGranted": False,
         "secretsRedacted": True, "recordedAt": "2026-08-14T09:00:00Z",
     }
@@ -541,9 +541,9 @@ def run_all() -> dict[str, Any]:
         expect_rejected("authority-in-request", "TWINLC-DOC-001", check_request, request, lambda d: d.update(authorityRef="authority://x/y")),
         expect_rejected("shell-in-request", "TWINLC-DOC-001", check_request, request, lambda d: d.update(command="rm -rf /")),
         expect_rejected("score-as-evidence", "TWINLC-REF-001", check_request, request, lambda d: d.update(
-            evidenceRefs=["score://wellmanifest.dev/evaluation/0.92", "evidence://wellmanifest.dev/conformance/r1"])),
+            evidenceRefs=["score://wellmanifest.com/evaluation/0.92", "evidence://wellmanifest.com/conformance/r1"])),
         expect_rejected("insufficient-evidence", "TWINLC-EVIDENCE-001", check_request, request, lambda d: d.update(
-            evidenceRefs=["evidence://wellmanifest.dev/conformance/r1"])),
+            evidenceRefs=["evidence://wellmanifest.com/conformance/r1"])),
         expect_rejected("unpinned-blueprint-revision", "TWINLC-BLUEPRINT-001", check_request, request, lambda d: d.update(
             blueprint={**pinned, "definitionDigest": "sha256:" + "b" * 64})),
         expect_rejected("replay-executed-effects", "TWINLC-REPLAY-001", check_state, state, lambda d: d.update(replayExecutedEffects=True)),

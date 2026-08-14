@@ -46,7 +46,7 @@
         },
         "reviewVerificationMethod": { "const": "github-api-allowlist" },
         "signedAttestationPredicateType": {
-          "const": "https://wellmanifest.dev/attestations/validator/v1"
+          "const": "https://wellmanifest.com/attestations/validator/v1"
         }
       }
     },
