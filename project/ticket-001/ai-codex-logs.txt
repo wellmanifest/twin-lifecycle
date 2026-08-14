@@ -5,3 +5,12 @@
 - Import from an unrelated cwd and a decoy lifecycle.py earlier on PYTHONPATH passed.
 - Read-only, networkless container validation passed with an ephemeral noexec tmpfs.
 - Ruff passed with the pre-existing UP035, FURB167 and E731 rules excluded.
+
+2026-08-14 TRUSTED_PUBLICATION
+- Evidence pull request #5 passed `governance / remote lifecycle` and
+  `standards / lifecycle conformance` at exact head
+  2e836c18782b35f2baf4a55bc77f928f3a3f1b56.
+- Validator run 31785638943 produced exact-head approval 4935595999 from
+  ifuri-validator-agent[bot].
+- Pull request #5 merged through the active ruleset as
+  93e93172bfa99684fbc4c74e7f036ffe917d6c26; its branch was deleted.
