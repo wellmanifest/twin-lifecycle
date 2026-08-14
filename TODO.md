@@ -2,6 +2,9 @@
 
 ## Active
 
+- [ ] [ticket-002](project/ticket-002/README.md) — assign normative
+  `standard/**` contracts to the integration workstream.
+
 - [x] Publish `wellmanifest.twin-lifecycle/v1`: the immutable blueprint,
   GBNF-constrained transition requests, observe-only stage projection and
   redacted receipts, with a dependency-free conformance suite and stable

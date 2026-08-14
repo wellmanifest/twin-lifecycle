@@ -1,0 +1,6 @@
+2026-08-14 VALIDATION
+- Effective manifest and intent JSON parsed successfully.
+- Exact integration ownership pattern standard/** is present once.
+- Managed package baseline and manifest lock remain byte-unchanged.
+- ./project/governance-check.sh passed with 0 errors and 0 warnings.
+- git diff --check and git diff --cached --check passed.
