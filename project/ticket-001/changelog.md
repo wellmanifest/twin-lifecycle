@@ -8,3 +8,5 @@
 - Bound state, transition, initial and terminal parity to the reference blueprint.
 - Added byte-drift, semantic-drift and import-path substitution coverage.
 - Narrowed the post-merge ticket to publication of integrated validation evidence.
+- Published the governed evidence through exact-head Validator App approval
+  and closed the ticket from the integrated default branch.
