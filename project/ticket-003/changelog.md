@@ -8,3 +8,5 @@
   push runs `standard/conformance.py --all`.
 - Repinned its actions to the Node 24 revisions used by the adopted governance
   workflow.
+- Published the CI gate through exact-head Validator App approval and closed
+  the ticket from the integrated default branch.
