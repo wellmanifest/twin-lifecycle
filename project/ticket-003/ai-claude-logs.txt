@@ -1,0 +1,8 @@
+2026-08-14 TRUSTED_PUBLICATION
+- Pull request #4 passed `governance / remote lifecycle` and
+  `standards / lifecycle conformance` at exact head
+  a2dac04642b5bdab3603db21c37f75e5b6b709bc.
+- Validator run 31785037354 produced exact-head approval 4935528240 from
+  ifuri-validator-agent[bot].
+- Pull request #4 merged through the active ruleset as
+  d25cd8cc53eea261cac963f54c4b38e3e761ea25; its branch was deleted.
