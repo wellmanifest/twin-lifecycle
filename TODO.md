@@ -12,6 +12,10 @@
 - [ ] Adopt `wellmanifest/new-project` 0.16.2 governance so every later change
   resolves to exactly one ticket and passes the managed gate.
 
+- [ ] [`ticket-003`](project/ticket-003/README.md): run the conformance suite
+  on every pull request and default-branch push. Status: `IN_PROGRESS / EDIT`;
+  classification: `SERVICE / P1 / health`.
+
 ## Later
 
 - [ ] Add tailored blueprint examples beyond `twin-reference/v1` once a second

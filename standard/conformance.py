@@ -10,8 +10,11 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import re
+import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -19,8 +22,13 @@ ROOT = Path(__file__).resolve().parent
 SCHEMA_PATH = ROOT / "twin-lifecycle.schema.json"
 GRAMMAR_PATH = ROOT / "twin-lifecycle.v1.gbnf"
 BLUEPRINT_PATH = ROOT / "blueprint.examples.json"
+LIFECYCLE_PATH = ROOT / "twin-lifecycle.lifecycle"
+LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
 SCHEMA_DIGEST = "72049b265e748793a3abfdc126a466eadb013e78a8a94d4a10ae9583d39bcac7"
 GRAMMAR_DIGEST = "e8e240b7f89c569de64c4e185dd8a1ce2055bd3b3d189841afaf1783b695d036"
+LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
+LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
+LIFECYCLE_PROFILE_DIGEST = "7a2cf7b57adf599c5af313bd073b8aa66601af936114e51cc9758a49e672d5d5"
 SCHEMA_FAMILY = "wellmanifest.twin-lifecycle/v1"
 SCHEMA_URI = "https://wellmanifest.dev/schemas/twin-lifecycle/v1"
 
@@ -85,6 +93,75 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def lifecycle_name(value: str) -> str:
+    return value.upper().replace("-", "_")
+
+
+def load_pinned_lifecycle() -> Any:
+    """Load the vendored validator from the exact file whose digest was checked.
+
+    A plain `import lifecycle` resolves through `sys.path`, so the module that
+    runs is not necessarily the file the digest verified, and the suite stops
+    being importable from another working directory. Loading by explicit path
+    keeps the pin and the executed code the same object.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "twin_lifecycle_pinned_validator", LIFECYCLE_VALIDATOR_PATH
+    )
+    if spec is None or spec.loader is None:
+        raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle validator is not loadable")
+    module = importlib.util.module_from_spec(spec)
+    # Register before execution: a dataclass resolves its own module through
+    # sys.modules while the class body is processed.
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate_lifecycle_profile(
+    blueprint: dict[str, Any],
+    *,
+    validator_path: Path = LIFECYCLE_VALIDATOR_PATH,
+    profile_path: Path = LIFECYCLE_PATH,
+) -> None:
+    if digest(validator_path.read_bytes()) != LIFECYCLE_VALIDATOR_DIGEST:
+        raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle validator digest mismatch")
+    if digest(profile_path.read_bytes()) != LIFECYCLE_PROFILE_DIGEST:
+        raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle profile digest mismatch")
+    lifecycle = load_pinned_lifecycle()
+    report = lifecycle.validate_path(profile_path, lifecycle.embedded_catalog())
+    if not report.valid or len(report.lifecycles) != 1:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL profile is invalid")
+    model = report.lifecycles[0]
+    expected_states = {
+        lifecycle_name(str(stage["id"])) for stage in blueprint["stages"]
+    }
+    expected_transitions = {
+        (
+            lifecycle_name(str(rule["from"])),
+            lifecycle_name(str(rule["to"])),
+            lifecycle_name(str(rule["action"])),
+        )
+        for rule in blueprint["transitions"]
+    }
+    actual_transitions = {
+        (item.source, item.target, item.event) for item in model.transitions
+    }
+    expected_terminal = sorted(
+        lifecycle_name(str(stage["id"]))
+        for stage in blueprint["stages"]
+        if stage["terminal"]
+    )
+    if model.name != "twin-stage" or set(model.states) != expected_states:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL state graph mismatch")
+    if actual_transitions != expected_transitions:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL transition graph mismatch")
+    if model.summary()["initial_state"] != lifecycle_name(blueprint["initialStage"]):
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL initial stage mismatch")
+    if model.summary()["terminal_states"] != expected_terminal:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL terminal stage mismatch")
 
 
 def reject_sensitive(value: Any) -> None:
@@ -324,6 +401,47 @@ def validate_receipt(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
         match("decisionRef", doc["gateDecisionRef"])
 
 
+def lifecycle_projection_cases(blueprint: dict[str, Any]) -> list[dict[str, str]]:
+    """Prove the projection rules the same way every other rule is proven.
+
+    Drift in the pinned validator, the pinned profile or the state graph must
+    fail the suite; without these cases a silently disabled projection check
+    would still report a green run.
+    """
+    check: Callable[[dict[str, Any]], Any] = validate_lifecycle_profile
+    cases = [
+        expect_rejected("lifecycle-projection-state-drift", "TWINLC-GRAPH-001", check, blueprint,
+                        lambda d: d["stages"][1].__setitem__("id", "renamed")),
+        expect_rejected("lifecycle-projection-transition-drift", "TWINLC-GRAPH-001", check, blueprint,
+                        lambda d: d["transitions"][0].__setitem__("action", "sketch")),
+        expect_rejected("lifecycle-projection-initial-drift", "TWINLC-GRAPH-001", check, blueprint,
+                        lambda d: d.__setitem__("initialStage", "modeled")),
+        expect_rejected("lifecycle-projection-terminal-drift", "TWINLC-GRAPH-001", check, blueprint,
+                        lambda d: d["stages"][4].__setitem__("terminal", True)),
+    ]
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        drifted_profile = root / "twin-lifecycle.lifecycle"
+        drifted_profile.write_bytes(LIFECYCLE_PATH.read_bytes() + b"\n")
+        drifted_validator = root / "lifecycle.py"
+        drifted_validator.write_bytes(LIFECYCLE_VALIDATOR_PATH.read_bytes() + b"\n")
+        cases.append(
+            expect_rejected(
+                "lifecycle-pinned-profile-byte-drift", "TWINLC-BLUEPRINT-001",
+                lambda doc: validate_lifecycle_profile(doc, profile_path=drifted_profile),
+                blueprint, lambda d: None,
+            )
+        )
+        cases.append(
+            expect_rejected(
+                "lifecycle-pinned-validator-byte-drift", "TWINLC-BLUEPRINT-001",
+                lambda doc: validate_lifecycle_profile(doc, validator_path=drifted_validator),
+                blueprint, lambda d: None,
+            )
+        )
+    return cases
+
+
 def expect_rejected(
     name: str,
     code: str,
@@ -355,6 +473,7 @@ def run_all() -> dict[str, Any]:
             raise ContractError("TWINLC-SECRET-001", "unsafe grammar surface")
 
     blueprint = validate_blueprint(json.loads(BLUEPRINT_PATH.read_text()))
+    validate_lifecycle_profile(blueprint)
     pinned = ref_of(blueprint)
     request = {
         "schema": SCHEMA_FAMILY, "kind": "transition-request", "requestId": "request:release-twin",
@@ -439,12 +558,16 @@ def run_all() -> dict[str, Any]:
         expect_rejected("blocked-without-unmet-criteria", "TWINLC-EVIDENCE-001", check_receipt, receipt, lambda d: d.update(
             status="BLOCKED", approvedBy=None, unmetCriteria=[])),
     ]
+    rejected.extend(lifecycle_projection_cases(blueprint))
     return {
         "schema": "wellmanifest.twin-lifecycle-conformance/v1",
         "ok": True,
         "positiveDocuments": 4,
         "adversarialRejected": rejected,
         "referenceBlueprint": pinned,
+        "lifecycleSourceRevision": LIFECYCLE_SOURCE_REVISION,
+        "lifecycleValidatorDigest": "sha256:" + LIFECYCLE_VALIDATOR_DIGEST,
+        "lifecycleProfileDigest": "sha256:" + LIFECYCLE_PROFILE_DIGEST,
         "schemaDigest": "sha256:" + SCHEMA_DIGEST,
         "grammarDigest": "sha256:" + GRAMMAR_DIGEST,
     }
