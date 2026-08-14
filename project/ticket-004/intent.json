@@ -1,0 +1,99 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-004",
+  "summary": "Point schema identifiers at the live host",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "regression"
+  },
+  "allowedPaths": [
+    "standard/**",
+    "docs/**",
+    "project/ticket-004/**",
+    "TODO.md",
+    "project/TICKETS.md"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [
+    "python"
+  ],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "bbbb8295ea0ee8300c8dff3c76b7992e41619582",
+    "targetBranch": "main",
+    "outcome": "Schema identifiers resolve on the live host and the pinned digests match the documents they describe",
+    "nonGoals": [
+      "No edit to any file the adoption lock hashes; a managed-file rename belongs upstream in wellmanifest/new-project",
+      "No change to the stage graph, the rules or the conformance semantics",
+      "No retroactive change to the blueprint revision that subactor/twin already pins",
+      "No change to .governance/manifest.json; its schema reference belongs with the upstream managed-file rename"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 10,
+    "budgets": {
+      "maxImplementationFiles": 4,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Take the repository-owned half of the local rename and re-pin the schema digest it invalidated; reject the half that edits locked managed files",
+      "components": [
+        {
+          "name": "schema-identity",
+          "paths": [
+            "standard/twin-lifecycle.schema.json",
+            "standard/blueprint.examples.json",
+            "standard/conformance.py"
+          ]
+        },
+        {
+          "name": "binding-documentation",
+          "paths": [
+            "docs/TWIN_BINDING.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert this ticket; the previously published revision keeps the old identifiers and its own matching digests"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py --all"
+        ],
+        "evidence": "The suite passes with the re-pinned schema digest: 4 canonical documents, 30 adversarial rejections"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "python3 - <<'EOF'  # recompute managed digests against .governance/manifest.lock.json"
+        ],
+        "evidence": "Every managed file still hashes to its recorded value, so the adoption lock stays consistent"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh --actor agent --base bbbb8295ea0ee8300c8dff3c76b7992e41619582 --head HEAD"
+        ],
+        "evidence": "The managed gate passes with the change resolving to exactly one integration ticket"
+      }
+    ]
+  }
+}

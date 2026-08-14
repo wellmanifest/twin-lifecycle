@@ -19,6 +19,11 @@
   on every pull request and default-branch push. Status: `DONE / DONE`;
   classification: `SERVICE / P1 / health`.
 
+- [ ] [`ticket-004`](project/ticket-004/README.md): point schema identifiers at
+  the live host and re-pin the digests that move with them, without touching
+  files the adoption lock hashes. Status: `IN_PROGRESS / EDIT`; classification:
+  `BUG / P1 / regression`.
+
 ## Later
 
 - [ ] Add tailored blueprint examples beyond `twin-reference/v1` once a second

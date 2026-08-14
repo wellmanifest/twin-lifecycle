@@ -3,7 +3,7 @@
   "kind": "lifecycle-blueprint",
   "blueprintId": "twin-reference",
   "version": "v1",
-  "definitionUri": "lifecycle://wellmanifest.dev/twin-reference/v1",
+  "definitionUri": "lifecycle://wellmanifest.com/twin-reference/v1",
   "intent": "Reference Digital Twin lifecycle: concept to retirement with one repeatable evolution feedback loop",
   "immutable": true,
   "initialStage": "concept",
