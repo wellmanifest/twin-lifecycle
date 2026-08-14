@@ -1,0 +1,144 @@
+{
+  "schema": "wellmanifest.twin-lifecycle/v1",
+  "kind": "lifecycle-blueprint",
+  "blueprintId": "twin-reference",
+  "version": "v1",
+  "definitionUri": "lifecycle://wellmanifest.dev/twin-reference/v1",
+  "intent": "Reference Digital Twin lifecycle: concept to retirement with one repeatable evolution feedback loop",
+  "immutable": true,
+  "initialStage": "concept",
+  "approverRoles": ["role:owner", "role:release-approver", "role:change-approver"],
+  "replayExecutesTransitions": false,
+  "approvalGrantsAuthority": false,
+  "stages": [
+    {
+      "id": "concept",
+      "intent": "Bounded twin intent is recorded; nothing is modeled or deployed",
+      "entryCriteria": ["criterion:intent-recorded"],
+      "exitCriteria": ["criterion:scope-bounded", "criterion:aggregate-type-declared"],
+      "requiredArtifacts": ["artifact:twin.intent"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "modeled",
+      "intent": "Profile, protobuf contract and operation set exist and are digest-pinned",
+      "entryCriteria": ["criterion:aggregate-type-declared"],
+      "exitCriteria": ["criterion:profile-digest-pinned", "criterion:transport-bindings-complete"],
+      "requiredArtifacts": ["artifact:twin.profile", "artifact:twin.proto"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "validated",
+      "intent": "Deterministic validation and generated conformance cases were observed to pass",
+      "entryCriteria": ["criterion:profile-digest-pinned"],
+      "exitCriteria": ["criterion:conformance-cases-passed", "criterion:replay-safety-observed"],
+      "requiredArtifacts": ["artifact:twin.conformance", "artifact:twin.manifest"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "released",
+      "intent": "An immutable bundle revision is published and receipted",
+      "entryCriteria": ["criterion:conformance-cases-passed"],
+      "exitCriteria": ["criterion:release-receipt-recorded", "criterion:capability-map-hash-pinned"],
+      "requiredArtifacts": ["artifact:twin.release.receipt"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "operating",
+      "intent": "The twin observes its target and reconciles under authorized commands",
+      "entryCriteria": ["criterion:capability-map-hash-pinned"],
+      "exitCriteria": ["criterion:health-observations-current", "criterion:outbox-drained"],
+      "requiredArtifacts": ["artifact:twin.health.observation"],
+      "repeatable": true,
+      "terminal": false
+    },
+    {
+      "id": "evolving",
+      "intent": "A revision-pinned change plan is proposed, applied or compensated",
+      "entryCriteria": ["criterion:health-observations-current", "criterion:change-plan-revision-pinned"],
+      "exitCriteria": ["criterion:regenerated-artifacts-read-back", "criterion:new-revision-verified"],
+      "requiredArtifacts": ["artifact:twin.evolution.plan", "artifact:twin.evolution.receipt"],
+      "repeatable": true,
+      "terminal": false
+    },
+    {
+      "id": "retired",
+      "intent": "The twin no longer holds effect authority; history remains immutable",
+      "entryCriteria": ["criterion:outbox-drained", "criterion:retirement-approved"],
+      "exitCriteria": [],
+      "requiredArtifacts": ["artifact:twin.retirement.receipt"],
+      "repeatable": false,
+      "terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "action": "model",
+      "from": "concept",
+      "to": "modeled",
+      "requiredCriteria": ["criterion:scope-bounded", "criterion:aggregate-type-declared"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "validate",
+      "from": "modeled",
+      "to": "validated",
+      "requiredCriteria": ["criterion:profile-digest-pinned", "criterion:transport-bindings-complete"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "release",
+      "from": "validated",
+      "to": "released",
+      "requiredCriteria": ["criterion:conformance-cases-passed", "criterion:replay-safety-observed"],
+      "approverRoles": ["role:release-approver"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "operate",
+      "from": "released",
+      "to": "operating",
+      "requiredCriteria": ["criterion:release-receipt-recorded", "criterion:capability-map-hash-pinned"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "evolve",
+      "from": "operating",
+      "to": "evolving",
+      "requiredCriteria": ["criterion:health-observations-current", "criterion:change-plan-revision-pinned"],
+      "approverRoles": ["role:change-approver"],
+      "failClosed": true,
+      "reversible": true,
+      "compensatingAction": "stabilize"
+    },
+    {
+      "action": "stabilize",
+      "from": "evolving",
+      "to": "operating",
+      "requiredCriteria": ["criterion:regenerated-artifacts-read-back", "criterion:new-revision-verified"],
+      "approverRoles": ["role:change-approver"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "retire",
+      "from": "operating",
+      "to": "retired",
+      "requiredCriteria": ["criterion:outbox-drained", "criterion:retirement-approved"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    }
+  ]
+}

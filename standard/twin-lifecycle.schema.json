@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wellmanifest.dev/schemas/twin-lifecycle/v1",
+  "title": "Wellmanifest twin lifecycle contracts v1",
+  "description": "Closed contracts for an immutable Digital Twin lifecycle blueprint, its evidence-gated transition requests, its observe-only stage projection and its redacted transition receipts. A lifecycle document records that declared criteria were evaluated. It never grants execution authority, never carries secrets and never turns a score, proposal, simulation or model verdict into evidence.",
+  "oneOf": [
+    { "$ref": "#/$defs/blueprint" },
+    { "$ref": "#/$defs/transitionRequest" },
+    { "$ref": "#/$defs/lifecycleState" },
+    { "$ref": "#/$defs/transitionReceipt" }
+  ],
+  "$defs": {
+    "schemaFamily": { "const": "wellmanifest.twin-lifecycle/v1" },
+    "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,62}[a-z0-9]$" },
+    "sha256Ref": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "revision": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+    "stageId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,47}$" },
+    "actionId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,47}$" },
+    "criterionRef": { "type": "string", "pattern": "^criterion:[a-z][a-z0-9._-]{0,63}$" },
+    "artifactRef": { "type": "string", "pattern": "^artifact:[a-z][a-z0-9._:-]{0,127}$" },
+    "roleRef": { "type": "string", "pattern": "^role:[a-z][a-z0-9._-]{0,63}$" },
+    "requestId": { "type": "string", "pattern": "^request:[a-z0-9][a-z0-9._-]{0,95}$" },
+    "transitionId": { "type": "string", "pattern": "^transition:[a-z0-9][a-z0-9._-]{0,95}$" },
+    "idempotencyKey": { "type": "string", "pattern": "^idempotency:[a-z0-9][a-z0-9._-]{0,95}$" },
+    "blueprintVersion": { "type": "string", "pattern": "^v[1-9][0-9]*$" },
+    "twinRef": { "type": "string", "maxLength": 320, "pattern": "^twin://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+$" },
+    "definitionUri": { "type": "string", "maxLength": 320, "pattern": "^lifecycle://[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9._-]*/v[1-9][0-9]*$" },
+    "evidenceRef": { "type": "string", "maxLength": 320, "pattern": "^evidence://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+/r[1-9][0-9]*$" },
+    "decisionRef": { "type": "string", "maxLength": 320, "pattern": "^decision://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+$" },
+    "eventRef": { "type": "string", "maxLength": 320, "pattern": "^event://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+$" },
+    "actorRef": { "type": "string", "maxLength": 240, "pattern": "^actor://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:-]+$" },
+    "actorClass": { "enum": ["human", "service", "twin-persona"] },
+    "timestamp": { "type": "string", "maxLength": 40, "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?(?:Z|[+-][0-9]{2}:[0-9]{2})$" },
+    "transitionStatus": { "enum": ["REQUESTED", "APPROVED", "BLOCKED", "REJECTED"] },
+
+    "blueprintRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blueprintId", "version", "definitionUri", "definitionDigest", "immutable"],
+      "properties": {
+        "blueprintId": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+        "version": { "$ref": "#/$defs/blueprintVersion" },
+        "definitionUri": { "$ref": "#/$defs/definitionUri" },
+        "definitionDigest": { "$ref": "#/$defs/sha256Ref" },
+        "immutable": { "const": true }
+      }
+    },
+
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorRef", "actorClass"],
+      "properties": {
+        "actorRef": { "$ref": "#/$defs/actorRef" },
+        "actorClass": { "$ref": "#/$defs/actorClass" }
+      }
+    },
+
+    "approver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorRef", "actorClass", "role"],
+      "properties": {
+        "actorRef": { "$ref": "#/$defs/actorRef" },
+        "actorClass": { "enum": ["human", "service"] },
+        "role": { "$ref": "#/$defs/roleRef" }
+      }
+    },
+
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "entryCriteria", "exitCriteria", "requiredArtifacts", "repeatable", "terminal"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stageId" },
+        "intent": { "type": "string", "maxLength": 240 },
+        "entryCriteria": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/criterionRef" } },
+        "exitCriteria": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/criterionRef" } },
+        "requiredArtifacts": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/artifactRef" } },
+        "repeatable": { "type": "boolean" },
+        "terminal": { "type": "boolean" }
+      }
+    },
+
+    "transitionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "from", "to", "requiredCriteria", "approverRoles", "failClosed", "reversible"],
+      "properties": {
+        "action": { "$ref": "#/$defs/actionId" },
+        "from": { "$ref": "#/$defs/stageId" },
+        "to": { "$ref": "#/$defs/stageId" },
+        "requiredCriteria": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/criterionRef" } },
+        "approverRoles": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/roleRef" } },
+        "failClosed": { "const": true },
+        "reversible": { "type": "boolean" },
+        "compensatingAction": { "$ref": "#/$defs/actionId" }
+      }
+    },
+
+    "blueprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "kind", "blueprintId", "version", "definitionUri", "immutable",
+        "initialStage", "approverRoles", "stages", "transitions", "replayExecutesTransitions",
+        "approvalGrantsAuthority"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schemaFamily" },
+        "kind": { "const": "lifecycle-blueprint" },
+        "blueprintId": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+        "version": { "$ref": "#/$defs/blueprintVersion" },
+        "definitionUri": { "$ref": "#/$defs/definitionUri" },
+        "intent": { "type": "string", "maxLength": 240 },
+        "immutable": { "const": true },
+        "initialStage": { "$ref": "#/$defs/stageId" },
+        "approverRoles": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/roleRef" } },
+        "stages": { "type": "array", "minItems": 2, "maxItems": 64, "items": { "$ref": "#/$defs/stage" } },
+        "transitions": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "$ref": "#/$defs/transitionRule" } },
+        "replayExecutesTransitions": { "const": false },
+        "approvalGrantsAuthority": { "const": false }
+      }
+    },
+
+    "transitionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "kind", "requestId", "twinRef", "blueprint", "action", "fromStage",
+        "toStage", "baseRevision", "requestedBy", "evidenceRefs", "gateDecisionRef", "idempotencyKey"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schemaFamily" },
+        "kind": { "const": "transition-request" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "twinRef": { "$ref": "#/$defs/twinRef" },
+        "blueprint": { "$ref": "#/$defs/blueprintRef" },
+        "action": { "$ref": "#/$defs/actionId" },
+        "fromStage": { "$ref": "#/$defs/stageId" },
+        "toStage": { "$ref": "#/$defs/stageId" },
+        "baseRevision": { "$ref": "#/$defs/revision" },
+        "requestedBy": { "$ref": "#/$defs/actor" },
+        "evidenceRefs": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/evidenceRef" } },
+        "gateDecisionRef": { "oneOf": [{ "$ref": "#/$defs/decisionRef" }, { "type": "null" }] },
+        "idempotencyKey": { "$ref": "#/$defs/idempotencyKey" }
+      }
+    },
+
+    "lifecycleState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "kind", "twinRef", "blueprint", "currentStage", "aggregateVersion",
+        "derivedFrom", "lastTransitionId", "unmetCriteria", "replayExecutedEffects"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schemaFamily" },
+        "kind": { "const": "lifecycle-state" },
+        "twinRef": { "$ref": "#/$defs/twinRef" },
+        "blueprint": { "$ref": "#/$defs/blueprintRef" },
+        "currentStage": { "$ref": "#/$defs/stageId" },
+        "aggregateVersion": { "type": "integer", "minimum": 0 },
+        "derivedFrom": { "const": "event-stream" },
+        "lastTransitionId": { "oneOf": [{ "$ref": "#/$defs/transitionId" }, { "type": "null" }] },
+        "unmetCriteria": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/criterionRef" } },
+        "replayExecutedEffects": { "const": false }
+      }
+    },
+
+    "transitionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "kind", "transitionId", "requestId", "twinRef", "blueprint", "action",
+        "fromStage", "toStage", "status", "baseRevision", "aggregateVersion", "evidenceRefs",
+        "unmetCriteria", "approvedBy", "gateDecisionRef", "eventRefs", "idempotencyKey",
+        "authorityGranted", "secretsRedacted", "recordedAt"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schemaFamily" },
+        "kind": { "const": "transition-receipt" },
+        "transitionId": { "$ref": "#/$defs/transitionId" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "twinRef": { "$ref": "#/$defs/twinRef" },
+        "blueprint": { "$ref": "#/$defs/blueprintRef" },
+        "action": { "$ref": "#/$defs/actionId" },
+        "fromStage": { "$ref": "#/$defs/stageId" },
+        "toStage": { "$ref": "#/$defs/stageId" },
+        "status": { "$ref": "#/$defs/transitionStatus" },
+        "baseRevision": { "$ref": "#/$defs/revision" },
+        "aggregateVersion": { "type": "integer", "minimum": 0 },
+        "evidenceRefs": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/evidenceRef" } },
+        "unmetCriteria": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/criterionRef" } },
+        "approvedBy": { "oneOf": [{ "$ref": "#/$defs/approver" }, { "type": "null" }] },
+        "gateDecisionRef": { "oneOf": [{ "$ref": "#/$defs/decisionRef" }, { "type": "null" }] },
+        "eventRefs": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/eventRef" } },
+        "idempotencyKey": { "$ref": "#/$defs/idempotencyKey" },
+        "authorityGranted": { "const": false },
+        "secretsRedacted": { "const": true },
+        "recordedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}
