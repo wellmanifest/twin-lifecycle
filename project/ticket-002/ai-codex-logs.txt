@@ -4,3 +4,12 @@
 - Managed package baseline and manifest lock remain byte-unchanged.
 - ./project/governance-check.sh passed with 0 errors and 0 warnings.
 - git diff --check and git diff --cached --check passed.
+
+2026-08-14 TRUSTED_PUBLICATION
+- Pull request #3 passed `governance / remote lifecycle` and
+  `standards / lifecycle conformance` at exact head
+  f93bc4cd51dee29d68abe651a691f4f701bf908d.
+- Validator run 31785264018 produced exact-head approval 4935560905 from
+  ifuri-validator-agent[bot].
+- Pull request #3 merged through the active ruleset as
+  581540363e901f23f252ceb22d304713ce7a3293; its branch was deleted.
