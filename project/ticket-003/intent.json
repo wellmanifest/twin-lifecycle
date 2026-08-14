@@ -1,0 +1,90 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-003",
+  "summary": "Gate the conformance suite in CI",
+  "workstream": "infrastructure",
+  "classification": {
+    "kind": "SERVICE",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    ".github/workflows/lifecycle-conformance.yml",
+    "project/ticket-003/**",
+    "TODO.md",
+    "project/TICKETS.md"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [
+    "python"
+  ],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "ac519fd593bdeb73ef8c32e080d17dae4eceec7d",
+    "targetBranch": "main",
+    "outcome": "Every pull request and every push to the default branch runs the normative conformance suite, so a contract that subactor/twin already pins cannot regress unobserved",
+    "nonGoals": [
+      "No change to the standard, the reference blueprint or the conformance rules themselves",
+      "No new runtime dependency; the suite stays dependency-free and offline",
+      "No workflow that publishes, deploys or acquires any credential",
+      "No change to the managed governance workflow or the adopted package"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 10,
+    "budgets": {
+      "maxImplementationFiles": 1,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Publish the workflow authored locally as `ci: require Lifecycle DSL conformance`, cherry-picked with its original authorship, and repin its actions to the exact Node 24 revisions the adopted governance workflow already uses",
+      "components": [
+        {
+          "name": "conformance-ci",
+          "paths": [
+            ".github/workflows/lifecycle-conformance.yml"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Delete the workflow; the suite remains runnable locally with python3 standard/conformance.py --all"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py --all"
+        ],
+        "evidence": "The suite the workflow runs passes locally at the accepted base with 4 canonical documents and 30 adversarial rejections"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "python3 -c \"import json,pathlib,re; ...\""
+        ],
+        "evidence": "Every action in the workflow is pinned to a full 40-character revision, matching the Node 24 pins used by the adopted governance workflow"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh --actor agent --base ac519fd593bdeb73ef8c32e080d17dae4eceec7d --head HEAD"
+        ],
+        "evidence": "The managed gate passes with the change resolving to exactly one infrastructure ticket"
+      }
+    ]
+  }
+}
