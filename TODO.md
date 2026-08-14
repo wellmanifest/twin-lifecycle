@@ -5,7 +5,7 @@
 - [x] [ticket-001](project/ticket-001/README.md) — adopt the byte-pinned shared
   Lifecycle DSL validator and enforce exact Twin stage graph equality.
 
-- [ ] [ticket-002](project/ticket-002/README.md) — assign normative
+- [x] [ticket-002](project/ticket-002/README.md) — assign normative
   `standard/**` contracts to the integration workstream.
 
 - [x] Publish `wellmanifest.twin-lifecycle/v1`: the immutable blueprint,
