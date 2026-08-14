@@ -2,6 +2,9 @@
 
 ## Active
 
+- [ ] [ticket-001](project/ticket-001/README.md) — adopt the byte-pinned shared
+  Lifecycle DSL validator and enforce exact Twin stage graph equality.
+
 - [ ] [ticket-002](project/ticket-002/README.md) — assign normative
   `standard/**` contracts to the integration workstream.
 
@@ -9,7 +12,7 @@
   GBNF-constrained transition requests, observe-only stage projection and
   redacted receipts, with a dependency-free conformance suite and stable
   `TWINLC-*` diagnostics.
-- [ ] Adopt `wellmanifest/new-project` 0.16.2 governance so every later change
+- [x] Adopt `wellmanifest/new-project` 0.16.2 governance so every later change
   resolves to exactly one ticket and passes the managed gate.
 
 - [ ] [`ticket-003`](project/ticket-003/README.md): run the conformance suite

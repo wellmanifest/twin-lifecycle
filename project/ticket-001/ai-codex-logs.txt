@@ -1,0 +1,7 @@
+2026-08-14 PUBLICATION
+- Pull request #1 merged as ac519fd593bdeb73ef8c32e080d17dae4eceec7d.
+- Four canonical documents and 30 adversarial cases passed.
+- Exact state, transition, initial and terminal parity passed.
+- Import from an unrelated cwd and a decoy lifecycle.py earlier on PYTHONPATH passed.
+- Read-only, networkless container validation passed with an ephemeral noexec tmpfs.
+- Ruff passed with the pre-existing UP035, FURB167 and E731 rules excluded.

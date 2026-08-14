@@ -1,0 +1,64 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-001",
+  "summary": "Adopt shared Lifecycle DSL profile",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "delivery": {
+    "acceptedBaseSha": "ac519fd593bdeb73ef8c32e080d17dae4eceec7d",
+    "targetBranch": "main",
+    "outcome": "The integrated Twin Lifecycle DSL projection has a governed, reproducible validation record ready for publication.",
+    "nonGoals": [
+      "Change the already integrated Twin profile, validator or conformance code",
+      "Add a lifecycle executor, network fetch or runtime dependency",
+      "Modify the shared Lifecycle DSL source in this ticket",
+      "Add CI workflow infrastructure in this integration ticket",
+      "Merge without independent trusted current-head approval"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 1,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Publish governance evidence for the already integrated pinned validator and exact graph binding without modifying contract artifacts.",
+      "components": [
+        {
+          "name": "adoption-evidence",
+          "paths": ["project/ticket-001/**"]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Revert only the ticket evidence publication."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {"criterion": "AC-01", "commands": ["python3 standard/conformance.py --all"], "evidence": "project/ticket-001/ai-codex-logs.txt"},
+      {"criterion": "AC-02", "commands": ["python3 standard/conformance.py --all"], "evidence": "project/ticket-001/ai-codex-logs.txt"},
+      {"criterion": "AC-03", "commands": ["python3 standard/conformance.py --all"], "evidence": "project/ticket-001/ai-codex-logs.txt"},
+      {"criterion": "AC-04", "commands": ["cross-directory import probes", "decoy PYTHONPATH probe", "networkless read-only container run"], "evidence": "project/ticket-001/ai-codex-logs.txt"},
+      {"criterion": "AC-05", "commands": ["./project/governance-check.sh", "git diff --check"], "evidence": "project/ticket-001/ai-codex-logs.txt"}
+    ]
+  },
+  "allowedPaths": [
+    "project/ticket-001/**",
+    "TODO.md",
+    "project/TICKETS.md"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null
+}
