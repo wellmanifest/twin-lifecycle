@@ -22,7 +22,9 @@ python3 standard/conformance.py --all
 
 The suite is dependency-free. It pins the schema and grammar digests, accepts
 four canonical documents and proves that 24 adversarial mutations reject with
-their declared `TWINLC-*` diagnostic code.
+their declared `TWINLC-*` diagnostic code. It also validates the local
+Lifecycle DSL profile with a byte-pinned standalone validator and requires its
+states and transitions to equal the reference blueprint exactly.
 
 ## Layout
 
@@ -31,6 +33,8 @@ their declared `TWINLC-*` diagnostic code.
 | `standard/twin-lifecycle.schema.json` | closed blueprint, request, state and receipt contracts |
 | `standard/twin-lifecycle.v1.gbnf` | grammar emitting only canonical transition requests |
 | `standard/blueprint.examples.json` | the reference `twin-reference/v1` blueprint |
+| `standard/twin-lifecycle.lifecycle` | shared Lifecycle DSL projection of that blueprint |
+| `standard/lifecycle.py` | offline validator pinned to shared lifecycle revision `4b5e131` |
 | `standard/conformance.py` | semantic conformance beyond JSON Schema |
 | `docs/ARCHITECTURE.md` | responsibility, graph rules, diagnostics |
 | `docs/LOGIC_FLOW.md` | resolution, gate and replay boundaries |

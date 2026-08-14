@@ -15,12 +15,19 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+import lifecycle
+
 ROOT = Path(__file__).resolve().parent
 SCHEMA_PATH = ROOT / "twin-lifecycle.schema.json"
 GRAMMAR_PATH = ROOT / "twin-lifecycle.v1.gbnf"
 BLUEPRINT_PATH = ROOT / "blueprint.examples.json"
+LIFECYCLE_PATH = ROOT / "twin-lifecycle.lifecycle"
+LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
 SCHEMA_DIGEST = "72049b265e748793a3abfdc126a466eadb013e78a8a94d4a10ae9583d39bcac7"
 GRAMMAR_DIGEST = "e8e240b7f89c569de64c4e185dd8a1ce2055bd3b3d189841afaf1783b695d036"
+LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
+LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
+LIFECYCLE_PROFILE_DIGEST = "7a2cf7b57adf599c5af313bd073b8aa66601af936114e51cc9758a49e672d5d5"
 SCHEMA_FAMILY = "wellmanifest.twin-lifecycle/v1"
 SCHEMA_URI = "https://wellmanifest.dev/schemas/twin-lifecycle/v1"
 
@@ -85,6 +92,48 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def lifecycle_name(value: str) -> str:
+    return value.upper().replace("-", "_")
+
+
+def validate_lifecycle_profile(blueprint: dict[str, Any]) -> None:
+    if digest(LIFECYCLE_VALIDATOR_PATH.read_bytes()) != LIFECYCLE_VALIDATOR_DIGEST:
+        raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle validator digest mismatch")
+    if digest(LIFECYCLE_PATH.read_bytes()) != LIFECYCLE_PROFILE_DIGEST:
+        raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle profile digest mismatch")
+    report = lifecycle.validate_path(LIFECYCLE_PATH, lifecycle.embedded_catalog())
+    if not report.valid or len(report.lifecycles) != 1:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL profile is invalid")
+    model = report.lifecycles[0]
+    expected_states = {
+        lifecycle_name(str(stage["id"])) for stage in blueprint["stages"]
+    }
+    expected_transitions = {
+        (
+            lifecycle_name(str(rule["from"])),
+            lifecycle_name(str(rule["to"])),
+            lifecycle_name(str(rule["action"])),
+        )
+        for rule in blueprint["transitions"]
+    }
+    actual_transitions = {
+        (item.source, item.target, item.event) for item in model.transitions
+    }
+    expected_terminal = sorted(
+        lifecycle_name(str(stage["id"]))
+        for stage in blueprint["stages"]
+        if stage["terminal"]
+    )
+    if model.name != "twin-stage" or set(model.states) != expected_states:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL state graph mismatch")
+    if actual_transitions != expected_transitions:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL transition graph mismatch")
+    if model.summary()["initial_state"] != lifecycle_name(blueprint["initialStage"]):
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL initial stage mismatch")
+    if model.summary()["terminal_states"] != expected_terminal:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL terminal stage mismatch")
 
 
 def reject_sensitive(value: Any) -> None:
@@ -355,6 +404,7 @@ def run_all() -> dict[str, Any]:
             raise ContractError("TWINLC-SECRET-001", "unsafe grammar surface")
 
     blueprint = validate_blueprint(json.loads(BLUEPRINT_PATH.read_text()))
+    validate_lifecycle_profile(blueprint)
     pinned = ref_of(blueprint)
     request = {
         "schema": SCHEMA_FAMILY, "kind": "transition-request", "requestId": "request:release-twin",
