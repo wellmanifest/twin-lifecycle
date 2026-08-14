@@ -21,10 +21,11 @@ python3 standard/conformance.py --all
 ```
 
 The suite is dependency-free. It pins the schema and grammar digests, accepts
-four canonical documents and proves that 24 adversarial mutations reject with
+four canonical documents and proves that 30 adversarial mutations reject with
 their declared `TWINLC-*` diagnostic code. It also validates the local
-Lifecycle DSL profile with a byte-pinned standalone validator and requires its
-states and transitions to equal the reference blueprint exactly.
+Lifecycle DSL profile with a byte-pinned standalone validator, loaded from the
+exact file whose digest was checked, and requires its states, transitions,
+initial stage and terminal stages to equal the reference blueprint exactly.
 
 ## Layout
 
