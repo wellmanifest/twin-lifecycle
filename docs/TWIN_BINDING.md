@@ -47,14 +47,23 @@ graph rules, its request grammar and its conformance suite.
 
    ```json
    {
-     "id": "twin-lifecycle-blueprint",
+     "id": "twin-lifecycle-standard",
      "role": "normative",
      "repository": "https://github.com/wellmanifest/twin-lifecycle",
      "revision": "<full 40-char commit sha>",
      "artifact": "standard/twin-lifecycle.schema.json",
-     "digest": "sha256:72049b265e748793a3abfdc126a466eadb013e78a8a94d4a10ae9583d39bcac7"
+     "digest": "sha256:1da3f85aae2895d31eed491e4189026cb725fa0395a7601e0e7b615a20e10cfe"
    }
    ```
+
+   Contract-source digests follow the twin convention: `sha256` over the raw
+   artifact bytes at the pinned revision. That is a different value from the
+   canonical-JSON digest a blueprint reference carries — the schema file is
+   `1da3f85a…` by raw bytes and `72049b26…` canonically, and
+   `blueprint.examples.json` is `3400fc69…` by raw bytes and `cd1795c6…`
+   canonically. Contract sources pin the file; blueprint references pin the
+   document's canonical content, so re-indenting a blueprint cannot silently
+   rebind a running twin.
 
 2. **Bind a blueprint revision.** Extend `$.lifecycle` with the pinned
    reference the twin operates under, so the profile names a real stage graph
