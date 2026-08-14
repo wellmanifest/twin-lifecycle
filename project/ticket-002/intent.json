@@ -1,0 +1,53 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-002",
+  "summary": "Assign standard contracts to integration workstream",
+  "workstream": "governance",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "regression"
+  },
+  "delivery": {
+    "acceptedBaseSha": "552f9464f3b661695fe4bfdbb4bea774c785f956",
+    "targetBranch": "main",
+    "outcome": "Normative standard artifacts have an explicit, bounded integration-workstream owner.",
+    "nonGoals": [
+      "Change any file under standard/",
+      "Change managed new-project package files or their lock",
+      "Add a runtime dependency",
+      "Merge without independent trusted current-head approval"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 10,
+    "budgets": {"maxImplementationFiles": 1, "maxAffectedComponents": 1, "maxPublicInterfaceChanges": 0, "maxRuntimeDependencies": 0},
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add the existing normative standard directory to the integration workstream's effective ownedPaths without modifying the managed package baseline.",
+      "components": [{"name": "governance-coordination", "paths": [".governance/manifest.json"]}],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Revert the one effective-manifest path entry."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {"criterion": "AC-01", "commands": ["inspect .governance/manifest.json"], "evidence": "project/ticket-002/ai-codex-logs.txt"},
+      {"criterion": "AC-02", "commands": ["python3 -m json.tool .governance/manifest.json", "./project/governance-check.sh"], "evidence": "project/ticket-002/ai-codex-logs.txt"},
+      {"criterion": "AC-03", "commands": ["governance scope probe for standard/**"], "evidence": "project/ticket-002/ai-codex-logs.txt"},
+      {"criterion": "AC-04", "commands": ["git diff --check", "git diff --name-only"], "evidence": "project/ticket-002/ai-codex-logs.txt"}
+    ]
+  },
+  "allowedPaths": [
+    "project/ticket-002/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    ".governance/manifest.json"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null
+}
