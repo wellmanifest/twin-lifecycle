@@ -73,7 +73,7 @@ graph rules, its request grammar and its conformance suite.
    "blueprintRef": {
      "blueprintId": "twin-reference",
      "version": "v1",
-     "definitionUri": "lifecycle://wellmanifest.dev/twin-reference/v1",
+     "definitionUri": "lifecycle://wellmanifest.com/twin-reference/v1",
      "definitionDigest": "sha256:cd1795c6befea022e8a21d4f5e4c0c66f9b6eb86a5c32803ff569f44f93743ad",
      "immutable": true
    }
