@@ -66,4 +66,7 @@ merge remains delegated to the independently configured Validator App.
   `cde5e5e74df9bdf5fbb4eddc016fc120a018fc46`.
 - Remote exact-head readback passed and the merged branch disappeared.
 - PR #10 was reconciled as `CLOSED / UNMERGED / SUPERSEDED`; no unsafe stale
-  managed-file diff was merged.
+  managed-file diff was merged. The remote lifecycle gate then identified its
+  source branch as orphaned. After re-verifying the closed PR, exact SHA and
+  owner-authored discard sequence, only that remote ref was removed; the
+  commit remains locally recoverable.

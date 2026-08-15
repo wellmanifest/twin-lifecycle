@@ -49,8 +49,11 @@ their lock, its own evidence, and the root roadmap/index.
   `cde5e5e74df9bdf5fbb4eddc016fc120a018fc46`; the implementation branch is
   absent remotely after merge.
 - Obsolete pull request `#10` was closed unmerged on 2026-08-15 as superseded
-  by `#9` plus the atomic adoption in `#11`; its source branch was retained for
-  provenance.
+  by `#9` plus the atomic adoption in `#11`. Its exact orphaned remote ref was
+  then discarded according to the owner-authored sequence in #10 so the remote
+  lifecycle could converge; commit
+  `e9eee89ecf6b6f913d74ecccec31487062dbef70` remains recoverable from the
+  closed PR and local Git object/ref history.
 
 ## Participants
 

@@ -13,3 +13,5 @@
   lifecycle conformance validation.
 - Published through PR #11 with exact-head Validator approval and protected
   merge; reconciled obsolete PR #10 as closed and superseded.
+- Removed the exact superseded remote branch only after the hosted lifecycle
+  gate proved it was orphaned; retained its SHA as explicit recovery evidence.
