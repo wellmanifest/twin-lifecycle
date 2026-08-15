@@ -55,6 +55,18 @@ merge remains delegated to the independently configured Validator App.
 - The recorded outcome includes publication, so the declared protected
   delivery process is authorized without a second chat confirmation; this
   agent still does not provide or substitute trusted merge approval.
-- Independent exact-head Validator review and merge are pending publication;
-  new authority remains required only for destructive action, secret access or
-  material objective expansion.
+- None; independent exact-head validation, merge and remote readback completed.
+
+## Publication result
+
+- Hosted governance and lifecycle checks passed on exact implementation head
+  `1fd15be28973bbd2e3abe7689039c57f9d5ecda6`.
+- Independent Validator run `31857368069` issued approval `4942374584` after
+  two stable reads and merged PR #11 as
+  `cde5e5e74df9bdf5fbb4eddc016fc120a018fc46`.
+- Remote exact-head readback passed and the merged branch disappeared.
+- PR #10 was reconciled as `CLOSED / UNMERGED / SUPERSEDED`; no unsafe stale
+  managed-file diff was merged. The remote lifecycle gate then identified its
+  source branch as orphaned. After re-verifying the closed PR, exact SHA and
+  owner-authored discard sequence, only that remote ref was removed; the
+  commit remains locally recoverable.
