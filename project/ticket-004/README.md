@@ -2,8 +2,8 @@
 
 - **ID**: ticket-004
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
-- **Workflow state**: EDIT
+- **Status**: DONE
+- **Workflow state**: DONE
 - **Created**: 2026-08-14
 
 ## Goal and scope
@@ -36,3 +36,20 @@ canonical digests, so the pinned schema digest is re-pinned in the same change.
 
 - Human participant: unresolved; no user-* file was created by this script.
 - Agent participant: [ai-claude.md](ai-claude.md)
+- Closure participant: [ai-codex.md](ai-codex.md)
+
+## Publication evidence
+
+- Implementation pull request: `wellmanifest/twin-lifecycle#9`.
+- Exact reviewed head: `ebc109db6cff9dbd371684d8c37db3eaa33759c4`.
+- Hosted checks on the exact head: lifecycle conformance run `31823064124`
+  and remote lifecycle run `31823064199`, both successful.
+- Trusted Validator App approval: review `4940019179`, ticket `ticket-004`,
+  correlation `twin-lifecycle-pr-9-ticket-004-ebc109db6c`, deterministic
+  authority.
+- Integrated default-branch commit:
+  `20ba9508392ff91f97a68e2879b1073eff1119be`, merged at
+  `2026-08-14T18:10:10Z`; the implementation branch is absent remotely.
+- The separately managed host identifiers were later delivered through the
+  published-SHA governance transaction in ticket-005 / PR #11, preserving the
+  boundary explicitly excluded by this ticket.

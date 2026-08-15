@@ -19,9 +19,9 @@
   on every pull request and default-branch push. Status: `DONE / DONE`;
   classification: `SERVICE / P1 / health`.
 
-- [ ] [`ticket-004`](project/ticket-004/README.md): point schema identifiers at
+- [x] [`ticket-004`](project/ticket-004/README.md): point schema identifiers at
   the live host and re-pin the digests that move with them, without touching
-  files the adoption lock hashes. Status: `IN_PROGRESS / EDIT`; classification:
+  files the adoption lock hashes. Status: `DONE / DONE`; classification:
   `BUG / P1 / regression`.
 
 - [x] [`ticket-005`](project/ticket-005/README.md): atomically re-adopt the
