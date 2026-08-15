@@ -11,3 +11,5 @@
   managed file digests.
 - Preserved every Twin-owned contract and passed governance, schema, syntax and
   lifecycle conformance validation.
+- Published through PR #11 with exact-head Validator approval and protected
+  merge; reconciled obsolete PR #10 as closed and superseded.

@@ -2,8 +2,8 @@
 
 - **ID**: ticket-005
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
-- **Workflow state**: PUBLICATION
+- **Status**: DONE
+- **Workflow state**: DONE
 - **Created**: 2026-08-15
 
 ## Goal and scope
@@ -31,9 +31,26 @@ their lock, its own evidence, and the root roadmap/index.
   repository-owned Twin contract is changed.
 - [x] AC-05: the managed governance gate and Twin lifecycle conformance suite
   pass on the exact implementation head.
-- [ ] AC-06: publication uses current-head checks plus an independent trusted
+- [x] AC-06: publication uses current-head checks plus an independent trusted
   Validator review; the obsolete PR #10 is then closed as superseded rather
   than merged.
+
+## Publication evidence
+
+- Implementation pull request: `wellmanifest/twin-lifecycle#11`.
+- Exact reviewed head: `1fd15be28973bbd2e3abe7689039c57f9d5ecda6`.
+- Required hosted checks: remote lifecycle run `31857342349` and lifecycle
+  conformance run `31857342366`, both successful on the exact head.
+- Protected Validator run: `31857368069`, correlation
+  `twin-lifecycle-pr-11-ticket-005-1fd15be289`.
+- Trusted Validator App approval: review `4942374584`, bound to the exact head
+  after two stable reads.
+- Integrated default-branch commit:
+  `cde5e5e74df9bdf5fbb4eddc016fc120a018fc46`; the implementation branch is
+  absent remotely after merge.
+- Obsolete pull request `#10` was closed unmerged on 2026-08-15 as superseded
+  by `#9` plus the atomic adoption in `#11`; its source branch was retained for
+  provenance.
 
 ## Participants
 

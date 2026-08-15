@@ -24,10 +24,10 @@
   files the adoption lock hashes. Status: `IN_PROGRESS / EDIT`; classification:
   `BUG / P1 / regression`.
 
-- [ ] [`ticket-005`](project/ticket-005/README.md): atomically re-adopt the
+- [x] [`ticket-005`](project/ticket-005/README.md): atomically re-adopt the
   published `new-project v0.18.1` governance package, restoring live-host
   managed identifiers without bypassing the lock. Status:
-  `IN_PROGRESS / PUBLICATION`; classification: `SERVICE / P1 / health`.
+  `DONE / DONE`; classification: `SERVICE / P1 / health`.
 
 ## Later
 
