@@ -1,0 +1,84 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-005",
+  "summary": "Re-adopt published new-project v0.18.1 governance",
+  "workstream": "governance",
+  "classification": {
+    "kind": "SERVICE",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    ".governance/**",
+    "AGENTS.md",
+    "project/new-ticket.sh",
+    "project/ticket-005/**",
+    "TODO.md",
+    "project/TICKETS.md"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "20ba9508392ff91f97a68e2879b1073eff1119be",
+    "targetBranch": "main",
+    "outcome": "Twin lifecycle uses the exact published new-project 0.18.1 managed governance package and its live-host identifiers without breaking the adoption lock",
+    "nonGoals": [
+      "No hand-edit of a managed artifact or lock digest",
+      "No change to repository-owned Twin schemas, examples, conformance semantics or stage graph",
+      "No merge of the obsolete parked host-rename branch",
+      "No new runtime dependency"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 1,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Use Goal's published-SHA upgrade transaction so managed bytes and their lock move together",
+      "components": [
+        {
+          "name": "governance-adoption",
+          "paths": [
+            ".governance/**",
+            "AGENTS.md",
+            "project/new-ticket.sh"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the atomic adoption commit; the former lock and managed bytes remain a self-consistent 0.16.2 package"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "goal governance adopt --source-revision 16f7aea148a7f979e5c5abdfd4bc112224904d36 --target-root . --check"
+        ],
+        "evidence": "Goal reports no drift after the upgrade and the lock records the exact published source"
+      },
+      {
+        "criterion": "AC-05",
+        "commands": [
+          "./project/governance-check.sh --actor agent --base 20ba9508392ff91f97a68e2879b1073eff1119be --head HEAD",
+          "python3 standard/conformance.py --all"
+        ],
+        "evidence": "Both managed governance and Twin semantic conformance pass on the exact implementation head"
+      }
+    ]
+  }
+}
