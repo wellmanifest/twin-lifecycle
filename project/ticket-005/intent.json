@@ -31,10 +31,15 @@
       "No merge of the obsolete parked host-rename branch",
       "No new runtime dependency"
     ],
-    "complexity": "XS",
+    "complexity": "S",
     "estimatedMinutes": 20,
+    "standardAdoption": {
+      "sourceRepository": "wellmanifest/new-project",
+      "fromRevision": "63a03d0c2ec417f8eab9a6edb3c4ed654937a1ac",
+      "toRevision": "16f7aea148a7f979e5c5abdfd4bc112224904d36"
+    },
     "budgets": {
-      "maxImplementationFiles": 1,
+      "maxImplementationFiles": 2,
       "maxAffectedComponents": 1,
       "maxPublicInterfaceChanges": 0,
       "maxRuntimeDependencies": 0

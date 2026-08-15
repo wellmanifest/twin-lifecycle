@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -17,7 +18,24 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-RUNTIME_VERSION = "0.10.0"
+RUNTIME_VERSION = "0.11.0"
+POLICY_DSL_LOCK = {
+    "schema": "new-project.policy-dsl-lock/v1",
+    "dependency": {
+        "id": "wellmanifest/policy-dsl",
+        "version": "0.1.0-dev",
+        "sourceRepository": "wellmanifest/policy-dsl",
+        "sourceRevision": "daaf7b7b96312a2469de1b4799f2f81c7396de4e",
+        "sourcePath": "tests/policy_dsl_check.py",
+        "sourceSha256": "1ebed8ada3f687bf82de235b352ec1ce94b606887ad2a1657d66bd58f04314e8",
+    },
+    "installation": {
+        "packageSourcePath": "scripts/policy_dsl_check.py",
+        "managedTargetPath": ".governance/policy_dsl_check.py",
+        "lockTargetPath": ".governance/policy-dsl.lock.json",
+        "networkRequired": False,
+    },
+}
 ACTIVE_DEFAULT = {"IN_PROGRESS"}
 EXECUTABLE_SUFFIXES = {
     ".bat", ".c", ".cc", ".cmd", ".cpp", ".go", ".java", ".js", ".jsx",
@@ -28,6 +46,7 @@ SECRET_RE = re.compile(
     r"[ \t]*[:=][ \t]*['\"]?([A-Za-z0-9_./+=-]{12,})"
 )
 SAFE_SECRET_VALUES = re.compile(r"(?i)^(example|placeholder|changeme|your[_-]|\$\{|<|xxx|test)")
+GENERATED_SECRET_PLACEHOLDER_RE = re.compile(r"^__GENERATE_[A-Z0-9_]+__$")
 LOCAL_PATH_RE = re.compile(r"(?:[A-Za-z]:[\\/](?:Users|Documents|Desktop)[\\/]|/(?:home|Users)/[^/\s]+/)")
 IMMUTABLE_IMAGE_RE = re.compile(r"^[^@\s]+@sha256:[a-f0-9]{64}$")
 COMPOSE_IMAGE_RE = re.compile(
@@ -251,6 +270,64 @@ def safe_repo_path(root: Path, raw: str) -> Path:
     return candidate
 
 
+def resolve_policy_dsl_dependency(root: Path) -> tuple[Path, dict[str, Any]]:
+    """Resolve and byte-verify the reviewed Policy DSL runtime without network I/O."""
+    managed_lock = root / POLICY_DSL_LOCK["installation"]["lockTargetPath"]
+    if managed_lock.is_file():
+        lock_path = managed_lock
+        checker_path = root / POLICY_DSL_LOCK["installation"]["managedTargetPath"]
+    else:
+        lock_path = root / "governance/policy-dsl.lock.json"
+        checker_path = root / POLICY_DSL_LOCK["installation"]["packageSourcePath"]
+
+    lock = load_json(lock_path)
+    if lock != POLICY_DSL_LOCK:
+        raise ValueError("Policy DSL lock differs from the reviewed closed dependency record")
+    if not checker_path.is_file():
+        raise ValueError("Policy DSL checker is missing")
+    actual = hashlib.sha256(checker_path.read_bytes()).hexdigest()
+    expected = POLICY_DSL_LOCK["dependency"]["sourceSha256"]
+    if actual != expected:
+        raise ValueError(f"Policy DSL checker digest differs: expected={expected}, actual={actual}")
+    return checker_path, lock
+
+
+def load_policy_dsl_module(root: Path) -> Any:
+    checker_path, _ = resolve_policy_dsl_dependency(root)
+    name_digest = hashlib.sha256(str(checker_path).encode("utf-8")).hexdigest()[:16]
+    module_name = f"_new_project_policy_dsl_{name_digest}"
+    existing = sys.modules.get(module_name)
+    if existing is not None:
+        return existing
+    spec = importlib.util.spec_from_file_location(module_name, checker_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("Policy DSL checker cannot be imported")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
+    return module
+
+
+def check_policy_dsl(root: Path, report: Report) -> None:
+    contributing = root / "CONTRIBUTING.md"
+    if not contributing.is_file():
+        return
+    try:
+        policy_dsl = load_policy_dsl_module(root)
+        policy_dsl.parse_markdown(contributing.read_text(encoding="utf-8"))
+    except Exception as error:
+        report.add(
+            "GOV-POLICY-DSL-001",
+            f"CONTRIBUTING.md or its pinned Policy DSL runtime is invalid: {error}",
+            "Restore the managed Policy DSL files or correct the selected dsl fences, then rerun the governance gate.",
+            ["CONTRIBUTING.md"],
+        )
+
+
 def string_list(value: Any, *, nonempty: bool = False) -> bool:
     return (
         isinstance(value, list)
@@ -284,7 +361,7 @@ def approval_evidence_config_valid(value: Any) -> bool:
         ]
         and value.get("reviewVerificationMethod") == "github-api-allowlist"
         and value.get("signedAttestationPredicateType")
-        == "https://wellmanifest.dev/attestations/validator/v1"
+        == "https://wellmanifest.com/attestations/validator/v1"
     )
 
 
@@ -320,6 +397,25 @@ def delivery_limits_valid(value: dict[str, Any]) -> bool:
     ])
 
 
+DELIVERY_BUDGET_FIELDS = {
+    "maxImplementationFiles", "maxAffectedComponents",
+    "maxPublicInterfaceChanges", "maxRuntimeDependencies",
+}
+
+
+def delivery_profile_valid(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != DELIVERY_BUDGET_FIELDS:
+        return False
+    if not integer_fields_valid(value, DELIVERY_BUDGET_FIELDS):
+        return False
+    return (
+        value["maxImplementationFiles"] >= 1
+        and value["maxAffectedComponents"] >= 1
+        and value["maxPublicInterfaceChanges"] >= 0
+        and value["maxRuntimeDependencies"] >= 0
+    )
+
+
 def delivery_policy_valid(value: Any) -> bool:
     fields = {
         "requiredForImplementation", "maxActiveMinutes", "checkpointMinutes",
@@ -328,7 +424,8 @@ def delivery_policy_valid(value: Any) -> bool:
         "maxRuntimeDependencies", "targetBranches", "publicInterfacePaths",
         "dependencyManifestPaths",
     }
-    if not isinstance(value, dict) or set(value) != fields:
+    allowed_fields = {frozenset(fields), frozenset(fields | {"profiles"})}
+    if not isinstance(value, dict) or frozenset(value) not in allowed_fields:
         return False
     integer_limits = (
         "maxActiveMinutes", "checkpointMinutes", "maxImplementationFiles",
@@ -340,7 +437,20 @@ def delivery_policy_valid(value: Any) -> bool:
     limits_valid = delivery_limits_valid(value)
     classes_valid = (
         string_list(value.get("allowedComplexityClasses"), nonempty=True)
-        and set(value["allowedComplexityClasses"]) <= {"XS", "S"}
+        and len(set(value["allowedComplexityClasses"])) == len(value["allowedComplexityClasses"])
+        and set(value["allowedComplexityClasses"]) <= {"XS", "S", "M", "L"}
+    )
+    profiles = value.get("profiles")
+    profiles_valid = profiles is None or (
+        classes_valid
+        and isinstance(profiles, dict)
+        and set(profiles) == set(value["allowedComplexityClasses"])
+        and all(delivery_profile_valid(profile) for profile in profiles.values())
+        and all(
+            profile[field] <= value[field]
+            for profile in profiles.values()
+            for field in DELIVERY_BUDGET_FIELDS
+        )
     )
     targets_valid = (
         string_list(value.get("targetBranches"), nonempty=True)
@@ -349,7 +459,12 @@ def delivery_policy_valid(value: Any) -> bool:
     paths_valid = relative_pattern_list(value.get("publicInterfacePaths")) and relative_pattern_list(
         value.get("dependencyManifestPaths")
     )
-    return limits_valid and classes_valid and targets_valid and paths_valid
+    return limits_valid and classes_valid and profiles_valid and targets_valid and paths_valid
+
+
+def effective_delivery_policy(policy: dict[str, Any], complexity: str) -> dict[str, Any]:
+    profile = policy.get("profiles", {}).get(complexity)
+    return policy if profile is None else {**policy, **profile}
 
 
 def delivery_header_error(value: dict[str, Any]) -> str | None:
@@ -361,8 +476,8 @@ def delivery_header_error(value: dict[str, Any]) -> str | None:
         return "delivery outcome is blank"
     if not string_list(value.get("nonGoals"), nonempty=True):
         return "delivery nonGoals must be an explicit non-empty list"
-    if value.get("complexity") not in {"XS", "S"}:
-        return "delivery complexity must be XS or S"
+    if value.get("complexity") not in {"XS", "S", "M", "L"}:
+        return "delivery complexity must be XS, S, M or L"
     minutes = value.get("estimatedMinutes")
     if not isinstance(minutes, int) or isinstance(minutes, bool) or not 1 <= minutes <= 30:
         return "delivery estimatedMinutes must be between 1 and 30"
@@ -457,6 +572,33 @@ def delivery_validation_error(validation: Any) -> str | None:
             return "delivery validation evidence is blank"
         criteria.append(item["criterion"])
     return "delivery validation criteria must be unique" if len(criteria) != len(set(criteria)) else None
+
+
+PLACEMENT_HOMES = {"wellmanifest", "subactor", "semcod"}
+PLACEMENT_SHAPES = {"domain_pack", "runtime_service", "both"}
+PLACEMENT_ADOPT = re.compile(r"^wellmanifest/[a-z0-9][a-z0-9-]*$")
+
+
+def placement_error(value: Any) -> str | None:
+    required = {"home", "shape"}
+    allowed = required | {"runtimeOwner", "adopt"}
+    if not isinstance(value, dict) or not required <= set(value) <= allowed:
+        return "placement must contain home and shape"
+    if value["home"] not in PLACEMENT_HOMES:
+        return "placement home is invalid"
+    if value["shape"] not in PLACEMENT_SHAPES:
+        return "placement shape is invalid"
+    runtime_owner = value.get("runtimeOwner")
+    if runtime_owner is not None and runtime_owner not in PLACEMENT_HOMES:
+        return "placement runtimeOwner is invalid"
+    if value["home"] == "wellmanifest" and value["shape"] == "runtime_service":
+        return "runtime_service must not HOME wellmanifest; ADOPT packs from subactor or semcod"
+    adopt = value.get("adopt")
+    if adopt is not None and (
+        not string_list(adopt) or not all(PLACEMENT_ADOPT.fullmatch(item) for item in adopt)
+    ):
+        return "placement adopt must be wellmanifest/<pack> ids"
+    return None
 
 
 def standard_adoption_error(value: Any) -> str | None:
@@ -791,6 +933,23 @@ def docker_policy_valid(docker: Any) -> bool:
     )
 
 
+def repository_policy_valid(repository: Any) -> bool:
+    if repository is None:
+        return True
+    if (
+        not isinstance(repository, dict)
+        or set(repository) != {"mode", "componentRoots"}
+    ):
+        return False
+    mode = repository.get("mode")
+    roots = repository.get("componentRoots")
+    if mode not in {"standalone", "monorepo"} or not relative_pattern_list(roots):
+        return False
+    if len(set(roots)) != len(roots):
+        return False
+    return (mode == "standalone" and not roots) or (mode == "monorepo" and bool(roots))
+
+
 def workstreams_policy_valid(workstreams: Any) -> bool:
     if not isinstance(workstreams, dict) or not workstreams:
         return False
@@ -867,12 +1026,13 @@ def basic_manifest_valid(manifest: Any) -> bool:
     allowed_root_keys = {
         "$schema", "schema", "standard", "requiredFiles", "governancePaths",
         "trustedApprovalSources", "approvalEvidence", "ticket", "docker",
-        "coordination", "delivery", "stacks",
+        "repository", "coordination", "delivery", "stacks",
     }
     coordination = manifest.get("coordination")
     delivery = manifest.get("delivery")
     return (
         set(manifest) <= allowed_root_keys
+        and repository_policy_valid(manifest.get("repository"))
         and string_list(manifest.get("stacks", []))
         and set(manifest.get("stacks", [])) <= {"node", "python", "go", "rust", "java", "docker", "frontend", "terraform", "kubernetes"}
         and coordination_policy_valid(coordination)
@@ -1073,7 +1233,13 @@ def intent_v2_error(intent: dict[str, Any], ticket_name: str) -> str | None:
         return "intent integrationTicket must be null or a ticket ID"
     if integration == ticket_name:
         return "intent integrationTicket cannot reference its own ticket"
-    return delivery_intent_error(intent["delivery"]) if "delivery" in intent else None
+    if "delivery" in intent:
+        error = delivery_intent_error(intent["delivery"])
+        if error:
+            return error
+    if "placement" in intent:
+        return placement_error(intent["placement"])
+    return None
 
 
 def intent_classification_error(value: Any) -> str | None:
@@ -1098,7 +1264,15 @@ def intent_fields_error(intent: Any) -> str | None:
     expected = v1_fields if intent["schema"] == "new-project.intent/v1" else v2_fields
     if intent["schema"] == "new-project.intent/v3":
         expected |= {"classification"}
-    allowed = [expected] if intent["schema"] == "new-project.intent/v1" else [expected, expected | {"delivery"}]
+    if intent["schema"] == "new-project.intent/v1":
+        allowed = [expected]
+    else:
+        allowed = [
+            expected,
+            expected | {"delivery"},
+            expected | {"placement"},
+            expected | {"delivery", "placement"},
+        ]
     if set(intent) not in allowed:
         return f"intent must contain exactly the {intent['schema'].rsplit('/', 1)[-1]} fields"
     return None
@@ -1512,8 +1686,6 @@ def compose_image_references(path: Path) -> list[tuple[int, str]]:
 
 def check_docker_image_references(root: Path, manifest: dict[str, Any], report: Report) -> None:
     docker = manifest["docker"]
-    if not docker["required"]:
-        return
     invalid: list[tuple[str, int, str]] = []
     for raw_path in docker["dockerfiles"]:
         path = safe_repo_path(root, raw_path)
@@ -1589,9 +1761,16 @@ def check_ticket_content(root: Path, directories: list[Path], config: dict[str, 
 def probable_secret_fields(text: str) -> list[str]:
     fields = []
     for match in SECRET_RE.finditer(text):
+        value = match.group(2)
         shell_assignment = text[match.end(2):].startswith("=")
-        environment_reference = re.match(r"^[A-Z][A-Z0-9_]*=", match.group(2))
-        if not shell_assignment and not environment_reference and not SAFE_SECRET_VALUES.match(match.group(2)):
+        environment_reference = re.match(r"^[A-Z][A-Z0-9_]*=", value)
+        safe_generated_placeholder = GENERATED_SECRET_PLACEHOLDER_RE.fullmatch(value)
+        if (
+            not shell_assignment
+            and not environment_reference
+            and not SAFE_SECRET_VALUES.match(value)
+            and not safe_generated_placeholder
+        ):
             fields.append(match.group(1))
     return sorted(set(fields))
 
@@ -1691,13 +1870,14 @@ def check_declared_delivery_budget(
     intent_path: str,
     report: Report,
 ) -> None:
+    limits = effective_delivery_policy(policy, delivery["complexity"])
     complexity_limit = 10 if delivery["complexity"] == "XS" else policy["maxActiveMinutes"]
     declared_limits = delivery["budgets"]
     policy_limits = {
-        "maxImplementationFiles": policy["maxImplementationFiles"],
-        "maxAffectedComponents": policy["maxAffectedComponents"],
-        "maxPublicInterfaceChanges": policy["maxPublicInterfaceChanges"],
-        "maxRuntimeDependencies": policy["maxRuntimeDependencies"],
+        "maxImplementationFiles": limits["maxImplementationFiles"],
+        "maxAffectedComponents": limits["maxAffectedComponents"],
+        "maxPublicInterfaceChanges": limits["maxPublicInterfaceChanges"],
+        "maxRuntimeDependencies": limits["maxRuntimeDependencies"],
     }
     violations = {
         name: {"declared": declared_limits[name], "policy": limit}
@@ -1828,17 +2008,18 @@ def check_delivery_architecture(
     intent_path: str,
     report: Report,
 ) -> set[str]:
+    limits = effective_delivery_policy(policy, delivery["complexity"])
     declared_limits = delivery["budgets"]
     architecture = delivery["architecture"]
     components = architecture["components"]
     component_overflow = len(components) > min(
-        declared_limits["maxAffectedComponents"], policy["maxAffectedComponents"],
+        declared_limits["maxAffectedComponents"], limits["maxAffectedComponents"],
     )
     interface_overflow = len(architecture["interfaceChanges"]) > min(
-        declared_limits["maxPublicInterfaceChanges"], policy["maxPublicInterfaceChanges"],
+        declared_limits["maxPublicInterfaceChanges"], limits["maxPublicInterfaceChanges"],
     )
     dependency_overflow = len(delivery["runtimeDependencies"]) > min(
-        declared_limits["maxRuntimeDependencies"], policy["maxRuntimeDependencies"],
+        declared_limits["maxRuntimeDependencies"], limits["maxRuntimeDependencies"],
     )
     unmapped, multiply_mapped, touched_components = map_implementation_components(implementation, components)
     if component_overflow or unmapped or multiply_mapped:
@@ -1855,7 +2036,7 @@ def check_delivery_architecture(
             },
         )
     check_actual_delivery_budget(
-        policy, delivery, record, implementation, touched_components,
+        limits, delivery, record, implementation, touched_components,
         interface_overflow, dependency_overflow, report,
     )
     return touched_components
@@ -2164,7 +2345,7 @@ def approval_authority_valid(
     approval_config = manifest.get("approvalEvidence") or {}
     expected_predicate = approval_config.get(
         "signedAttestationPredicateType",
-        "https://wellmanifest.dev/attestations/validator/v1",
+        "https://wellmanifest.com/attestations/validator/v1",
     )
     return (
         actor["type"] in {"Bot", "Workflow"}
@@ -2596,6 +2777,20 @@ def check_change_gate(
     ]
     if not implementation:
         return None
+    repository = manifest.get("repository")
+    if repository and repository["mode"] == "monorepo":
+        outside_roots = [
+            path for path in implementation
+            if not matches(path, repository["componentRoots"])
+        ]
+        if outside_roots:
+            report.add(
+                "GOV-SCOPE-001",
+                "Monorepo implementation paths fall outside declared component roots.",
+                "Move the change under repository.componentRoots or update the manifest in a separately governed adoption.",
+                outside_roots,
+                {"componentRoots": repository["componentRoots"]},
+            )
     selected = select_change_ticket(root, active, manifest.get("coordination"), implementation, report)
     if selected is None:
         return None
@@ -2761,6 +2956,7 @@ def run_governance_checks(
     changed = resolve_changed_paths(args, root, base, report)
     load_work_classification(root, report, args.work_classification)
     check_lock(root, lock_path, manifest, report)
+    check_policy_dsl(root, report)
     check_required_files(root, manifest, report)
     check_docker_image_references(root, manifest, report)
     check_stacks(root, manifest, profiles_path, report)

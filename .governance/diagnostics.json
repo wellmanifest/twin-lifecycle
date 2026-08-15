@@ -181,6 +181,11 @@
       "remediation": "Replace the local path with a repository-relative reference and sanitize committed logs.",
       "documentation": null
     },
+    "GOV-POLICY-DSL-001": {
+      "message": "CONTRIBUTING.md or its pinned Policy DSL runtime is invalid.",
+      "remediation": "Restore the managed Policy DSL files or correct the selected dsl fences, then rerun the governance gate.",
+      "documentation": null
+    },
     "GOV-REMEDIATION-001": {
       "message": "A diagnostic remediation intent is malformed, unresolved or semantically unsafe.",
       "remediation": "Correct the target-owned remediation-intent DSL and pass deterministic schema and semantic validation before LLM planning.",
@@ -194,6 +199,11 @@
     "GOV-REMEDIATION-003": {
       "message": "The todo2code advisory overlay is stale for the current remediation intent.",
       "remediation": "Discard the overlay and rerun deterministic todo2code analysis against the current authority-bearing intent digest.",
+      "documentation": "error/GOV-REMEDIATION-INTENT.md"
+    },
+    "GOV-REMEDIATION-004": {
+      "message": "A declared todo2code remediation projection is missing, stale or outside the selected repository root.",
+      "remediation": "Render both declared projections atomically from the accepted intent, verify their exact bytes, then rerun todo2code extraction.",
       "documentation": "error/GOV-REMEDIATION-INTENT.md"
     },
     "GOV-SCOPE-001": {

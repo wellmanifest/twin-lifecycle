@@ -3,7 +3,7 @@
 - **ID**: ticket-005
 - **Owner**: unresolved:human
 - **Status**: IN_PROGRESS
-- **Workflow state**: EDIT
+- **Workflow state**: PUBLICATION
 - **Created**: 2026-08-15
 
 ## Goal and scope
@@ -21,15 +21,15 @@ their lock, its own evidence, and the root roadmap/index.
 
 ## Acceptance criteria
 
-- [ ] AC-01: The source commit is the peeled commit of final GitHub release
+- [x] AC-01: The source commit is the peeled commit of final GitHub release
   `v0.18.1`, and Goal accepts it as a published adoption source.
-- [ ] AC-02: `goal governance adopt --check` reports the reviewed 13-file
+- [x] AC-02: `goal governance adopt --check` reports the reviewed 13-file
   managed upgrade before writes; `--upgrade` installs the same atomic set.
-- [ ] AC-03: `.governance/manifest.lock.json` verifies every managed digest and
+- [x] AC-03: `.governance/manifest.lock.json` verifies every managed digest and
   records `wellmanifest/new-project` version `0.18.1` at the exact source SHA.
-- [ ] AC-04: Managed schema identifiers use `wellmanifest.com`; no
+- [x] AC-04: Managed schema identifiers use `wellmanifest.com`; no
   repository-owned Twin contract is changed.
-- [ ] AC-05: the managed governance gate and Twin lifecycle conformance suite
+- [x] AC-05: the managed governance gate and Twin lifecycle conformance suite
   pass on the exact implementation head.
 - [ ] AC-06: publication uses current-head checks plus an independent trusted
   Validator review; the obsolete PR #10 is then closed as superseded rather

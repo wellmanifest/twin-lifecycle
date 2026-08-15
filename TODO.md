@@ -27,7 +27,7 @@
 - [ ] [`ticket-005`](project/ticket-005/README.md): atomically re-adopt the
   published `new-project v0.18.1` governance package, restoring live-host
   managed identifiers without bypassing the lock. Status:
-  `IN_PROGRESS / EDIT`; classification: `SERVICE / P1 / health`.
+  `IN_PROGRESS / PUBLICATION`; classification: `SERVICE / P1 / health`.
 
 ## Later
 

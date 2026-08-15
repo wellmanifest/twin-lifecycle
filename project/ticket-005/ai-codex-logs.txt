@@ -2,3 +2,9 @@
 2026-08-15T01:38:00Z READ governance manifest, roadmap, ticket index and active ticket-004; selected a distinct governance workstream.
 2026-08-15T01:39:00Z VERIFIED new-project v0.18.1 is final and peels to 16f7aea148a7f979e5c5abdfd4bc112224904d36.
 2026-08-15T01:39:30Z PREFLIGHT Goal reported exactly 13 managed updates and no repository-owned Twin contract changes.
+2026-08-15T01:42:00Z ADOPTED wellmanifest/new-project 0.18.1 from published commit 16f7aea148a7f979e5c5abdfd4bc112224904d36; 13 managed paths updated atomically.
+2026-08-15T01:43:00Z VALIDATED post-adoption Goal check up-to-date; governance 0 errors/0 warnings; 34 lock digests exact; manifest and intent Draft 2020-12 schemas valid; Python and shell syntax valid.
+2026-08-15T01:43:10Z VALIDATED Twin conformance: 4 canonical documents accepted, 30 adversarial mutations rejected; no standard/** or docs/** diff.
+2026-08-15T01:44:00Z RECONCILED initial exact-head gate exposed the missing intent/v3 standardAdoption binding; declared immutable upgrade 63a03d0c2ec417f8eab9a6edb3c4ed654937a1ac -> 16f7aea148a7f979e5c5abdfd4bc112224904d36 without enlarging the ordinary XS budget.
+2026-08-15T01:44:30Z RECONCILED atomic verification exempted 11 managed payload paths and identified the extendable local manifest plus adoption lock as the two ordinary transaction files; corrected the declared XS budget from 1 to its two-file policy limit.
+2026-08-15T01:45:00Z RECONCILED classified the already-declared 20-minute transaction as S because the adopted profile caps XS at 10 minutes; path/component budgets remain two files and one component.
