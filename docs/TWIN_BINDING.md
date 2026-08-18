@@ -74,13 +74,28 @@ graph rules, its request grammar and its conformance suite.
      "blueprintId": "twin-reference",
      "version": "v1",
      "definitionUri": "lifecycle://wellmanifest.com/twin-reference/v1",
-     "definitionDigest": "sha256:cd1795c6befea022e8a21d4f5e4c0c66f9b6eb86a5c32803ff569f44f93743ad",
+     "definitionDigest": "sha256:40ec13508cd46a2f1ee0d512998bad54fe3911f8eb6c7bb6a27ff10c1b3f502e",
      "immutable": true
    }
    ```
 
    The digest above is the canonical digest of
-   `standard/blueprint.examples.json`; a tailored blueprint produces its own.
+   `standard/blueprint.examples.json`. A service twin that must validate then
+   repair one target at a time binds `service-observe-repair/v1` instead:
+
+   ```json
+   "blueprintRef": {
+     "blueprintId": "service-observe-repair",
+     "version": "v1",
+     "definitionUri": "lifecycle://wellmanifest.com/service-observe-repair/v1",
+     "definitionDigest": "sha256:36aba6a39af52a1d485da3ad48aa7e5fa671472be76090e9fef1ae39bb5b6870",
+     "immutable": true
+   }
+   ```
+
+   That digest is the canonical content of
+   `standard/blueprint.validate-repair.json`. See
+   [`VALIDATE_AND_REPAIR.md`](VALIDATE_AND_REPAIR.md).
 
 3. **Map the wire types.** The mapping is one-to-one and needs no proto change:
 

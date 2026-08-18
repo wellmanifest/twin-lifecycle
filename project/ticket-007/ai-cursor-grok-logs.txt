@@ -1,0 +1,156 @@
+{
+  "adversarialRejected": [
+    {
+      "case": "mutable-blueprint",
+      "code": "TWINLC-BLUEPRINT-001"
+    },
+    {
+      "case": "replay-executes-transitions",
+      "code": "TWINLC-REPLAY-001"
+    },
+    {
+      "case": "approval-grants-authority",
+      "code": "TWINLC-AUTHORITY-001"
+    },
+    {
+      "case": "unreachable-stage",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "terminal-stage-has-exit",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "feedback-into-non-repeatable-stage",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "criterion-outside-stage-contract",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "undeclared-approver-role",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "transition-not-fail-closed",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "undeclared-transition",
+      "code": "TWINLC-TRANSITION-001"
+    },
+    {
+      "case": "authority-in-request",
+      "code": "TWINLC-DOC-001"
+    },
+    {
+      "case": "shell-in-request",
+      "code": "TWINLC-DOC-001"
+    },
+    {
+      "case": "score-as-evidence",
+      "code": "TWINLC-REF-001"
+    },
+    {
+      "case": "insufficient-evidence",
+      "code": "TWINLC-EVIDENCE-001"
+    },
+    {
+      "case": "unpinned-blueprint-revision",
+      "code": "TWINLC-BLUEPRINT-001"
+    },
+    {
+      "case": "replay-executed-effects",
+      "code": "TWINLC-REPLAY-001"
+    },
+    {
+      "case": "state-outside-blueprint",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "receipt-grants-authority",
+      "code": "TWINLC-AUTHORITY-001"
+    },
+    {
+      "case": "approved-with-unmet-criteria",
+      "code": "TWINLC-EVIDENCE-001"
+    },
+    {
+      "case": "approved-without-events",
+      "code": "TWINLC-REF-001"
+    },
+    {
+      "case": "approved-by-wrong-role",
+      "code": "TWINLC-AUTHORITY-001"
+    },
+    {
+      "case": "persona-approves-itself",
+      "code": "TWINLC-AUTHORITY-001"
+    },
+    {
+      "case": "approved-without-gate-decision",
+      "code": "TWINLC-AUTHORITY-001"
+    },
+    {
+      "case": "blocked-without-unmet-criteria",
+      "code": "TWINLC-EVIDENCE-001"
+    },
+    {
+      "case": "sequential-skip-ahead-blueprint",
+      "code": "TWINLC-SEQUENCE-001"
+    },
+    {
+      "case": "sequential-skip-ahead-request",
+      "code": "TWINLC-TRANSITION-001"
+    },
+    {
+      "case": "lifecycle-projection-state-drift",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "lifecycle-projection-transition-drift",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "lifecycle-projection-initial-drift",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "lifecycle-projection-terminal-drift",
+      "code": "TWINLC-GRAPH-001"
+    },
+    {
+      "case": "lifecycle-pinned-profile-byte-drift",
+      "code": "TWINLC-BLUEPRINT-001"
+    },
+    {
+      "case": "lifecycle-pinned-validator-byte-drift",
+      "code": "TWINLC-BLUEPRINT-001"
+    }
+  ],
+  "grammarDigest": "sha256:e8e240b7f89c569de64c4e185dd8a1ce2055bd3b3d189841afaf1783b695d036",
+  "lifecycleProfileDigest": "sha256:7a2cf7b57adf599c5af313bd073b8aa66601af936114e51cc9758a49e672d5d5",
+  "lifecycleSourceRevision": "4b5e131a670afb46ca87291479fed7c0fefcf370",
+  "lifecycleValidatorDigest": "sha256:9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0",
+  "ok": true,
+  "positiveDocuments": 5,
+  "referenceBlueprint": {
+    "blueprintId": "twin-reference",
+    "definitionDigest": "sha256:40ec13508cd46a2f1ee0d512998bad54fe3911f8eb6c7bb6a27ff10c1b3f502e",
+    "definitionUri": "lifecycle://wellmanifest.com/twin-reference/v1",
+    "immutable": true,
+    "version": "v1"
+  },
+  "schema": "wellmanifest.twin-lifecycle-conformance/v1",
+  "schemaDigest": "sha256:98c2d346340aabd4b28ed860c469c3762971040be3aded721d7d6ae6bfb06e4f",
+  "tailoredBlueprints": [
+    {
+      "blueprintId": "service-observe-repair",
+      "definitionDigest": "sha256:36aba6a39af52a1d485da3ad48aa7e5fa671472be76090e9fef1ae39bb5b6870",
+      "definitionUri": "lifecycle://wellmanifest.com/service-observe-repair/v1",
+      "immutable": true,
+      "version": "v1"
+    }
+  ]
+}

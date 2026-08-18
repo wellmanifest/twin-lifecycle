@@ -21,11 +21,13 @@ python3 standard/conformance.py --all
 ```
 
 The suite is dependency-free. It pins the schema and grammar digests, accepts
-four canonical documents and proves that 30 adversarial mutations reject with
-their declared `TWINLC-*` diagnostic code. It also validates the local
-Lifecycle DSL profile with a byte-pinned standalone validator, loaded from the
-exact file whose digest was checked, and requires its states, transitions,
-initial stage and terminal stages to equal the reference blueprint exactly.
+five canonical documents (the four reference family documents plus
+`service-observe-repair/v1`) and proves that adversarial mutations reject with
+their declared `TWINLC-*` diagnostic code. Skip-ahead on the sequential
+blueprint is `TWINLC-SEQUENCE-001`. It also validates the local Lifecycle DSL
+profile with a byte-pinned standalone validator, loaded from the exact file
+whose digest was checked, and requires its states, transitions, initial stage
+and terminal stages to equal the reference blueprint exactly.
 
 ## Layout
 
@@ -34,6 +36,8 @@ initial stage and terminal stages to equal the reference blueprint exactly.
 | `standard/twin-lifecycle.schema.json` | closed blueprint, request, state and receipt contracts |
 | `standard/twin-lifecycle.v1.gbnf` | grammar emitting only canonical transition requests |
 | `standard/blueprint.examples.json` | the reference `twin-reference/v1` blueprint |
+| `standard/blueprint.validate-repair.json` | sequential `service-observe-repair/v1` validate-then-repair loop |
+| `docs/VALIDATE_AND_REPAIR.md` | how to validate a service twin and repair it one adjacent stage at a time |
 | `standard/twin-lifecycle.lifecycle` | shared Lifecycle DSL projection of that blueprint |
 | `standard/lifecycle.py` | offline validator pinned to shared lifecycle revision `4b5e131` |
 | `standard/conformance.py` | semantic conformance beyond JSON Schema |

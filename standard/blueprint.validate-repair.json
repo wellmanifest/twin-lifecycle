@@ -1,0 +1,218 @@
+{
+  "schema": "wellmanifest.twin-lifecycle/v1",
+  "kind": "lifecycle-blueprint",
+  "blueprintId": "service-observe-repair",
+  "version": "v1",
+  "definitionUri": "lifecycle://wellmanifest.com/service-observe-repair/v1",
+  "intent": "Sequential service-twin validate then repair: observe account inventory, bind one target, preflight, dry-run, evaluate grant, verify effect. No skip-ahead. Secrets stay in Vault.",
+  "immutable": true,
+  "initialStage": "observed",
+  "approverRoles": ["role:owner", "role:change-approver", "role:observer"],
+  "replayExecutesTransitions": false,
+  "approvalGrantsAuthority": false,
+  "stages": [
+    {
+      "id": "observed",
+      "intent": "A secret-free live account snapshot exists; nothing is selected or applied",
+      "entryCriteria": ["criterion:account-snapshot-observed"],
+      "exitCriteria": ["criterion:account-snapshot-observed"],
+      "requiredArtifacts": ["artifact:twin.account.snapshot"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "inventoried",
+      "intent": "The twin stores every visible subscription and domain with Vault refs only",
+      "entryCriteria": ["criterion:inventory-holds-refs-only", "criterion:inventory-lists-multiple-targets"],
+      "exitCriteria": ["criterion:inventory-holds-refs-only"],
+      "requiredArtifacts": ["artifact:twin.account.inventory"],
+      "repeatable": true,
+      "terminal": false
+    },
+    {
+      "id": "target-bound",
+      "intent": "Exactly one subscription, domain, docroot and vault_entry_id are bound",
+      "entryCriteria": ["criterion:target-in-inventory", "criterion:exact-docroot-bound", "criterion:vault-ref-only"],
+      "exitCriteria": ["criterion:target-in-inventory", "criterion:exact-docroot-bound"],
+      "requiredArtifacts": ["artifact:twin.target.binding"],
+      "repeatable": true,
+      "terminal": false
+    },
+    {
+      "id": "preflighted",
+      "intent": "Source completeness and host-specific preflight passed for that binding",
+      "entryCriteria": ["criterion:preflight-passed"],
+      "exitCriteria": ["criterion:preflight-passed"],
+      "requiredArtifacts": ["artifact:twin.preflight.receipt"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "planned",
+      "intent": "A dry-run receipt exists for the exact current binding; plan hash is current",
+      "entryCriteria": ["criterion:plan-hash-current"],
+      "exitCriteria": ["criterion:plan-hash-current"],
+      "requiredArtifacts": ["artifact:twin.dry-run.receipt"],
+      "repeatable": true,
+      "terminal": false
+    },
+    {
+      "id": "granted",
+      "intent": "The gate evaluated the exact plan hash. This is not apply authority",
+      "entryCriteria": ["criterion:grant-bound-to-plan-hash"],
+      "exitCriteria": ["criterion:grant-bound-to-plan-hash"],
+      "requiredArtifacts": ["artifact:twin.grant.evaluation"],
+      "repeatable": false,
+      "terminal": false
+    },
+    {
+      "id": "verified",
+      "intent": "Independent observe confirmed the intended effect; inventory still matches",
+      "entryCriteria": ["criterion:effect-independently-observed"],
+      "exitCriteria": ["criterion:effect-independently-observed"],
+      "requiredArtifacts": ["artifact:twin.effect.observation"],
+      "repeatable": true,
+      "terminal": false
+    },
+    {
+      "id": "abandoned",
+      "intent": "The loop stopped without claiming a verified effect",
+      "entryCriteria": ["criterion:abandonment-recorded"],
+      "exitCriteria": [],
+      "requiredArtifacts": ["artifact:twin.abandonment.receipt"],
+      "repeatable": false,
+      "terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "action": "inventory",
+      "from": "observed",
+      "to": "inventoried",
+      "requiredCriteria": ["criterion:account-snapshot-observed", "criterion:inventory-holds-refs-only", "criterion:inventory-lists-multiple-targets"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "bind-target",
+      "from": "inventoried",
+      "to": "target-bound",
+      "requiredCriteria": ["criterion:inventory-holds-refs-only", "criterion:target-in-inventory", "criterion:exact-docroot-bound", "criterion:vault-ref-only"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": true,
+      "compensatingAction": "refresh-inventory"
+    },
+    {
+      "action": "preflight",
+      "from": "target-bound",
+      "to": "preflighted",
+      "requiredCriteria": ["criterion:target-in-inventory", "criterion:exact-docroot-bound", "criterion:preflight-passed"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "plan",
+      "from": "preflighted",
+      "to": "planned",
+      "requiredCriteria": ["criterion:preflight-passed", "criterion:plan-hash-current"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": true,
+      "compensatingAction": "rebind-target"
+    },
+    {
+      "action": "evaluate-grant",
+      "from": "planned",
+      "to": "granted",
+      "requiredCriteria": ["criterion:plan-hash-current", "criterion:grant-bound-to-plan-hash"],
+      "approverRoles": ["role:change-approver"],
+      "failClosed": true,
+      "reversible": true,
+      "compensatingAction": "replan"
+    },
+    {
+      "action": "verify-effect",
+      "from": "granted",
+      "to": "verified",
+      "requiredCriteria": ["criterion:grant-bound-to-plan-hash", "criterion:effect-independently-observed"],
+      "approverRoles": ["role:observer"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "refresh-inventory",
+      "from": "target-bound",
+      "to": "inventoried",
+      "requiredCriteria": ["criterion:inventory-holds-refs-only"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "rebind-target",
+      "from": "planned",
+      "to": "target-bound",
+      "requiredCriteria": ["criterion:target-in-inventory", "criterion:exact-docroot-bound"],
+      "approverRoles": [],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "replan",
+      "from": "granted",
+      "to": "planned",
+      "requiredCriteria": ["criterion:plan-hash-current"],
+      "approverRoles": ["role:change-approver"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "next-target",
+      "from": "verified",
+      "to": "inventoried",
+      "requiredCriteria": ["criterion:effect-independently-observed", "criterion:inventory-holds-refs-only"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "abandon-unbound",
+      "from": "inventoried",
+      "to": "abandoned",
+      "requiredCriteria": ["criterion:abandonment-recorded"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "abandon-bound",
+      "from": "target-bound",
+      "to": "abandoned",
+      "requiredCriteria": ["criterion:abandonment-recorded"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "abandon-planned",
+      "from": "planned",
+      "to": "abandoned",
+      "requiredCriteria": ["criterion:abandonment-recorded"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    },
+    {
+      "action": "abandon-granted",
+      "from": "granted",
+      "to": "abandoned",
+      "requiredCriteria": ["criterion:abandonment-recorded"],
+      "approverRoles": ["role:owner"],
+      "failClosed": true,
+      "reversible": false
+    }
+  ]
+}

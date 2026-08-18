@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parent
 SCHEMA_PATH = ROOT / "twin-lifecycle.schema.json"
 GRAMMAR_PATH = ROOT / "twin-lifecycle.v1.gbnf"
 BLUEPRINT_PATH = ROOT / "blueprint.examples.json"
+VALIDATE_REPAIR_PATH = ROOT / "blueprint.validate-repair.json"
+SEQUENTIAL_BLUEPRINT_ID = "service-observe-repair"
 LIFECYCLE_PATH = ROOT / "twin-lifecycle.lifecycle"
 LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
 SCHEMA_DIGEST = "98c2d346340aabd4b28ed860c469c3762971040be3aded721d7d6ae6bfb06e4f"
@@ -305,7 +307,33 @@ def validate_blueprint(doc: dict[str, Any]) -> dict[str, Any]:
                 queue.append(target)
     if seen != set(stages):
         raise ContractError("TWINLC-GRAPH-001", "every stage must be reachable from the initial stage")
+    if doc["blueprintId"] == SEQUENTIAL_BLUEPRINT_ID:
+        validate_sequential_forward(doc, order, stages)
     return doc
+
+
+def validate_sequential_forward(
+    doc: dict[str, Any],
+    order: dict[str, int],
+    stages: dict[str, dict[str, Any]],
+) -> None:
+    """Opt-in sequential repair: a forward non-terminal hop must be adjacent.
+
+    Feedback into a repeatable earlier stage and any transition into a terminal
+    stage remain legal. Skip-ahead (observed → planned, inventoried → granted)
+    is how a service twin pretends one healthy fact implies the next.
+    """
+    for rule in doc["transitions"]:
+        source, target = str(rule["from"]), str(rule["to"])
+        if stages[target]["terminal"] is True:
+            continue
+        if order[target] <= order[source]:
+            continue
+        if order[target] != order[source] + 1:
+            raise ContractError(
+                "TWINLC-SEQUENCE-001",
+                "a sequential blueprint cannot skip a forward stage",
+            )
 
 
 def resolve(blueprint: dict[str, Any], action: Any, source: Any, target: Any) -> dict[str, Any]:
@@ -474,6 +502,23 @@ def run_all() -> dict[str, Any]:
 
     blueprint = validate_blueprint(json.loads(BLUEPRINT_PATH.read_text()))
     validate_lifecycle_profile(blueprint)
+    sequential = validate_blueprint(json.loads(VALIDATE_REPAIR_PATH.read_text()))
+    sequential_pinned = ref_of(sequential)
+    sequential_request = {
+        "schema": SCHEMA_FAMILY, "kind": "transition-request", "requestId": "request:bind-plesk-target",
+        "twinRef": "twin://digitaltwin-run/plesk-service-twin", "blueprint": sequential_pinned,
+        "action": "bind-target", "fromStage": "inventoried", "toStage": "target-bound",
+        "baseRevision": "c" * 40,
+        "requestedBy": {"actorRef": "actor://wellmanifest.com/project-operator", "actorClass": "service"},
+        "evidenceRefs": [
+            "evidence://digitaltwin-run/plesk/inventory/r1",
+            "evidence://digitaltwin-run/plesk/target-binding/r1",
+            "evidence://digitaltwin-run/plesk/docroot-binding/r1",
+            "evidence://digitaltwin-run/plesk/credential-ref/r1",
+        ],
+        "gateDecisionRef": None, "idempotencyKey": "idempotency:bind-plesk-target.1",
+    }
+    validate_request(sequential_request, sequential)
     pinned = ref_of(blueprint)
     request = {
         "schema": SCHEMA_FAMILY, "kind": "transition-request", "requestId": "request:release-twin",
@@ -557,12 +602,21 @@ def run_all() -> dict[str, Any]:
         expect_rejected("approved-without-gate-decision", "TWINLC-AUTHORITY-001", check_receipt, receipt, lambda d: d.update(gateDecisionRef=None)),
         expect_rejected("blocked-without-unmet-criteria", "TWINLC-EVIDENCE-001", check_receipt, receipt, lambda d: d.update(
             status="BLOCKED", approvedBy=None, unmetCriteria=[])),
+        expect_rejected("sequential-skip-ahead-blueprint", "TWINLC-SEQUENCE-001", check_blueprint, sequential, lambda d: d["transitions"].append({
+            "action": "skip-to-plan", "from": "observed", "to": "planned",
+            "requiredCriteria": ["criterion:account-snapshot-observed", "criterion:plan-hash-current"],
+            "approverRoles": [], "failClosed": True, "reversible": False,
+        })),
+        expect_rejected("sequential-skip-ahead-request", "TWINLC-TRANSITION-001",
+                        lambda doc: validate_request(doc, sequential), sequential_request, lambda d: d.update(
+                            action="plan", fromStage="inventoried", toStage="planned")),
     ]
     rejected.extend(lifecycle_projection_cases(blueprint))
     return {
         "schema": "wellmanifest.twin-lifecycle-conformance/v1",
         "ok": True,
-        "positiveDocuments": 4,
+        "positiveDocuments": 5,
+        "tailoredBlueprints": [sequential_pinned],
         "adversarialRejected": rejected,
         "referenceBlueprint": pinned,
         "lifecycleSourceRevision": LIFECYCLE_SOURCE_REVISION,

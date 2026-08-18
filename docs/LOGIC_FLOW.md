@@ -41,6 +41,10 @@ does not re-approve, re-reject or advance a stage, and `evolving → operating`
 is a declared feedback transition into a `repeatable` stage — not a replayed
 one.
 
+On `service-observe-repair/v1` the same rule is sequential: `inventoried` does
+not imply `planned`. A stale plan hash returns to `target-bound`; a new
+service returns to `inventoried`. Apply authority is still outside this graph.
+
 `(twinRef, idempotencyKey)` identifies one transition attempt. Replaying the
 same request must return the same receipt rather than a second mutation; a
 replay whose content changed is rejected.
