@@ -1,0 +1,89 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-007",
+  "summary": "Sequential validate-and-repair blueprint from the Plesk service twin",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-007/**",
+    "TODO.md",
+    "CHANGELOG.md",
+    "VERSION",
+    "README.md",
+    "project/TICKETS.md",
+    "docs/**",
+    "standard/blueprint.validate-repair.json",
+    "standard/conformance.py"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "f211058591e8fc3e8c0372c53af6332a1a3e4f9c",
+    "targetBranch": "main",
+    "outcome": "Twin-lifecycle declares how a service twin is validated and then repaired one adjacent stage at a time, using the Plesk account inventory as the worked example, without granting apply authority or storing secrets.",
+    "nonGoals": [
+      "No schema $id or digest change",
+      "No edit of the pinned Lifecycle DSL profile or validator",
+      "No rewrite of twin-reference/v1 stages",
+      "No Subactor runtime, Vault values or Plesk credentials",
+      "No new runtime dependency"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 45,
+    "budgets": {
+      "maxImplementationFiles": 12,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add a second immutable blueprint service-observe-repair/v1 plus a sequential-forward rule; compose mutation authority from wellmanifest/repair-lifecycle; keep twin-reference/v1 unchanged.",
+      "components": [
+        {
+          "name": "twin-lifecycle-standard",
+          "paths": [
+            "standard/blueprint.validate-repair.json",
+            "standard/conformance.py",
+            "docs/VALIDATE_AND_REPAIR.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [
+        "Second lifecycle blueprint and TWINLC-SEQUENCE-001"
+      ],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Delete the tailored blueprint and sequential check; reference suite remains byte-stable"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py --all"
+        ],
+        "evidence": "Reference documents still pass; service-observe-repair validates; skip-ahead rejects TWINLC-SEQUENCE-001"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "./project/governance-check.sh --actor agent --base f211058591e8fc3e8c0372c53af6332a1a3e4f9c --head HEAD"
+        ],
+        "evidence": "Exactly one integration ticket owns the standard and docs paths"
+      }
+    ]
+  }
+}
