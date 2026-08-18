@@ -29,10 +29,12 @@
   managed identifiers without bypassing the lock. Status:
   `DONE / DONE`; classification: `SERVICE / P1 / health`.
 
-## Later
+- [x] [`ticket-007`](project/ticket-007/README.md): sequential
+  validate-and-repair blueprint (`service-observe-repair/v1`) from the Plesk
+  service twin. Status: `IN_PROGRESS / PUBLICATION`; classification:
+  `FEATURE / P1 / requested`.
 
-- [ ] Add tailored blueprint examples beyond `twin-reference/v1` once a second
-  Twin declares its own stage graph.
+## Later
 - [ ] Add a machine-readable mapping export for the `subactor/twin` binding
   instead of the prose table in `docs/TWIN_BINDING.md`.
 - [ ] Extend conformance with idempotent-replay receipt cases once a reference

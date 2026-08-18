@@ -78,6 +78,9 @@ TRANSITION operating -> retired   ACTION retire    APPROVER role:owner
 
 The reference blueprint is one conforming instance, not the standard. A twin
 may tailor stages and actions; the graph rules below apply to every blueprint.
+`service-observe-repair/v1` is the second instance: it is how a service twin
+is validated and then repaired one adjacent stage at a time. See
+[`VALIDATE_AND_REPAIR.md`](VALIDATE_AND_REPAIR.md).
 
 ## Blueprint graph rules
 
@@ -151,6 +154,7 @@ reject or advance a stage, and a blueprint declares
 | `TWINLC-AUTHORITY-001` | Approval was treated as authority, or an approver is not accepted. |
 | `TWINLC-REPLAY-001` | Replay or projection semantics are not observe-only. |
 | `TWINLC-SECRET-001` | The secret-free key or grammar-surface rule is violated. |
+| `TWINLC-SEQUENCE-001` | A sequential blueprint declared a skip-ahead forward transition. |
 
 `standard/conformance.py --all` proves each code against an adversarial
 mutation and pins the schema and grammar digests. Exit status is `0` when the
