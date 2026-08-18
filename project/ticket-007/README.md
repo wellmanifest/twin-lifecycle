@@ -20,7 +20,7 @@ owns the service-twin loop. Apply authority stays in
   and rejects skip-ahead with `TWINLC-SEQUENCE-001`.
 - [x] AC-02: `docs/VALIDATE_AND_REPAIR.md` states the sequential rule and the
   Plesk inventory example without credentials.
-- [ ] AC-03: Managed governance passes for exactly this integration ticket.
+- [x] AC-03: Managed governance passes for exactly this integration ticket.
 
 ## Participants
 
