@@ -11,9 +11,7 @@
   "allowedPaths": [
     "project/ticket-007/**",
     "TODO.md",
-    "CHANGELOG.md",
     "VERSION",
-    "README.md",
     "project/TICKETS.md",
     "docs/**",
     "standard/blueprint.validate-repair.json",
@@ -38,8 +36,8 @@
     "complexity": "M",
     "estimatedMinutes": 30,
     "budgets": {
-      "maxImplementationFiles": 12,
-      "maxAffectedComponents": 1,
+      "maxImplementationFiles": 9,
+      "maxAffectedComponents": 3,
       "maxPublicInterfaceChanges": 1,
       "maxRuntimeDependencies": 0
     },
@@ -52,7 +50,16 @@
           "paths": [
             "standard/blueprint.validate-repair.json",
             "standard/conformance.py",
-            "docs/VALIDATE_AND_REPAIR.md"
+            "VERSION"
+          ]
+        },
+        {
+          "name": "twin-lifecycle-docs",
+          "paths": [
+            "docs/VALIDATE_AND_REPAIR.md",
+            "docs/ARCHITECTURE.md",
+            "docs/LOGIC_FLOW.md",
+            "docs/TWIN_BINDING.md"
           ]
         }
       ],
