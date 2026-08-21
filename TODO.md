@@ -31,7 +31,7 @@
 
 - [x] [`ticket-007`](project/ticket-007/README.md): sequential
   validate-and-repair blueprint (`service-observe-repair/v1`) from the Plesk
-  service twin. Status: `IN_PROGRESS / PUBLICATION`; classification:
+  service twin. Status: `DONE / DONE`; classification:
   `FEATURE / P1 / requested`.
 
 ## Later
