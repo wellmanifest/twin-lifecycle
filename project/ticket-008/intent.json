@@ -1,0 +1,64 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-008",
+  "summary": "Export the ecosystem Twin agent binding",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-008/**",
+    "TODO.md",
+    "VERSION",
+    "project/TICKETS.md",
+    "docs/TWIN_BINDING.md",
+    "docs/ECOSYSTEM_AGENT_BINDING.md",
+    "standard/binding.subactor-ecosystem.json",
+    "standard/conformance.py"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "a793a3a86dd5be76a24d5771cc5657efe9ed58b5",
+    "targetBranch": "main",
+    "outcome": "Publish a closed, machine-readable ecosystem Twin binding for sequential Doctor, Repair and Validator handoffs without granting runtime authority.",
+    "nonGoals": [
+      "No Subactor runtime implementation or controller changes",
+      "No repair execution or merge authority",
+      "No new lifecycle blueprint or schema family",
+      "No LLM-selected operations or targets"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 30,
+    "budgets": {
+      "maxImplementationFiles": 6,
+      "maxAffectedComponents": 3,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add a closed data-only binding over service-observe-repair/v1 and validate adjacent stages, fixed roles, digest bindings, external mutation authority and independent validation.",
+      "components": [
+        {"name": "binding-profile", "paths": ["standard/binding.subactor-ecosystem.json", "VERSION"]},
+        {"name": "binding-conformance", "paths": ["standard/conformance.py"]},
+        {"name": "binding-guidance", "paths": ["docs/TWIN_BINDING.md", "docs/ECOSYSTEM_AGENT_BINDING.md"]}
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": ["wellmanifest.twin-lifecycle-binding/v1 profile"],
+      "dataChanges": [],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Remove the optional binding profile and its conformance checks; lifecycle blueprints remain unchanged"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {"criterion": "AC-04", "commands": ["python3 standard/conformance.py --all"], "evidence": "Positive profile and three adversarial binding cases are reported"},
+      {"criterion": "AC-05", "commands": ["./project/governance-check.sh --actor agent --base a793a3a86dd5be76a24d5771cc5657efe9ed58b5 --head HEAD"], "evidence": "Exactly one integration ticket owns the binding standard and docs"}
+    ]
+  }
+}

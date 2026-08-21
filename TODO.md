@@ -35,7 +35,8 @@
   `FEATURE / P1 / requested`.
 
 ## Later
-- [ ] Add a machine-readable mapping export for the `subactor/twin` binding
-  instead of the prose table in `docs/TWIN_BINDING.md`.
+- [x] [`ticket-008`](project/ticket-008/README.md): export the machine-readable
+  ecosystem Twin agent binding for Doctor → Repair → Validator. Status:
+  `IN_PROGRESS / EDIT`; classification: `FEATURE / P1 / requested`.
 - [ ] Extend conformance with idempotent-replay receipt cases once a reference
   controller exists to produce them.
