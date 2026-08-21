@@ -23,6 +23,7 @@ SCHEMA_PATH = ROOT / "twin-lifecycle.schema.json"
 GRAMMAR_PATH = ROOT / "twin-lifecycle.v1.gbnf"
 BLUEPRINT_PATH = ROOT / "blueprint.examples.json"
 VALIDATE_REPAIR_PATH = ROOT / "blueprint.validate-repair.json"
+BINDING_PATH = ROOT / "binding.subactor-ecosystem.json"
 SEQUENTIAL_BLUEPRINT_ID = "service-observe-repair"
 LIFECYCLE_PATH = ROOT / "twin-lifecycle.lifecycle"
 LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
@@ -32,6 +33,7 @@ LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
 LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
 LIFECYCLE_PROFILE_DIGEST = "7a2cf7b57adf599c5af313bd073b8aa66601af936114e51cc9758a49e672d5d5"
 SCHEMA_FAMILY = "wellmanifest.twin-lifecycle/v1"
+BINDING_FAMILY = "wellmanifest.twin-lifecycle-binding/v1"
 SCHEMA_URI = "https://wellmanifest.com/schemas/twin-lifecycle/v1"
 
 BLUEPRINT_KEYS = {
@@ -79,6 +81,10 @@ SENSITIVE = re.compile(
 # Declared boolean assertions about redaction are part of the receipt contract; the
 # sensitive-key scan must not confuse an assertion with transported secret material.
 SAFE_ASSERTIONS = {"secretsRedacted"}
+BINDING_KEYS = {
+    "schema", "kind", "bindingId", "immutable", "acts", "blueprintRef", "stages",
+    "transitions", "authority", "decision", "deduplication", "humanDecisionRequiredFor",
+}
 
 
 class ContractError(ValueError):
@@ -215,6 +221,77 @@ def ref_of(blueprint: dict[str, Any]) -> dict[str, Any]:
         "definitionDigest": "sha256:" + digest(canonical(blueprint)),
         "immutable": True,
     }
+
+
+def validate_agent_binding(doc: dict[str, Any], blueprint: dict[str, Any]) -> dict[str, Any]:
+    doc = closed(doc, BINDING_KEYS)
+    if doc["schema"] != BINDING_FAMILY or doc["kind"] != "ecosystem-agent-binding":
+        raise ContractError("TWINLC-DOC-001", "wrong ecosystem binding family")
+    if doc["immutable"] is not True or doc["acts"] is not False:
+        raise ContractError("TWINLC-AUTHORITY-001", "an ecosystem binding is immutable and advisory")
+    if doc["blueprintRef"] != ref_of(blueprint):
+        raise ContractError("TWINLC-BLUEPRINT-001", "ecosystem binding does not pin the service blueprint")
+
+    expected_stages = ["observe", "diagnose", "prioritize", "repair", "validate", "accept"]
+    observed_stages: list[str] = []
+    owners: dict[str, str] = {}
+    requirements: dict[str, set[str]] = {}
+    for stage in doc["stages"]:
+        stage = closed(stage, {"id", "owner", "effect", "requires"})
+        stage_id = match("stageId", stage["id"])
+        if stage_id in owners or not isinstance(stage["owner"], str) or not isinstance(stage["effect"], str):
+            raise ContractError("TWINLC-DOC-001", "invalid ecosystem binding stage")
+        if not isinstance(stage["requires"], list) or not all(isinstance(item, str) for item in stage["requires"]):
+            raise ContractError("TWINLC-EVIDENCE-001", "binding stage evidence must be declared")
+        observed_stages.append(stage_id)
+        owners[stage_id] = stage["owner"]
+        requirements[stage_id] = set(stage["requires"])
+    if observed_stages != expected_stages:
+        raise ContractError("TWINLC-SEQUENCE-001", "ecosystem binding stages must be adjacent and ordered")
+
+    transitions = []
+    for transition in doc["transitions"]:
+        transition = closed(transition, {"from", "to"})
+        transitions.append((transition["from"], transition["to"]))
+    expected_transitions = list(zip(expected_stages, expected_stages[1:]))
+    if transitions != expected_transitions:
+        raise ContractError("TWINLC-SEQUENCE-001", "ecosystem binding cannot skip a stage")
+
+    authority = closed(doc["authority"], {"observation", "mutation", "acceptance", "approvalGrantsAuthority"})
+    if authority != {
+        "observation": "none-required",
+        "mutation": "external-digest-bound-grant",
+        "acceptance": "independent-exact-result-receipt",
+        "approvalGrantsAuthority": False,
+    }:
+        raise ContractError("TWINLC-AUTHORITY-001", "binding authority boundary is invalid")
+    if "evidence:authority-grant-digest" not in requirements["repair"]:
+        raise ContractError("TWINLC-AUTHORITY-001", "repair must bind an external grant digest")
+    if not {"evidence:snapshot-digest", "evidence:finding-digest", "evidence:plan-digest"} <= requirements["repair"]:
+        raise ContractError("TWINLC-EVIDENCE-001", "repair evidence binding is incomplete")
+    if "evidence:exact-result-digest" not in requirements["validate"]:
+        raise ContractError("TWINLC-EVIDENCE-001", "validator must observe the exact result")
+    if owners["repair"] == owners["validate"]:
+        raise ContractError("TWINLC-AUTHORITY-001", "repair and validator owners must differ")
+
+    decision = closed(doc["decision"], {"mode", "llmRole", "llmMayAddOperations", "llmMayAddTargets", "llmMayGrantAuthority"})
+    if decision != {
+        "mode": "deterministic-first",
+        "llmRole": "rank-equal-declared-candidates-only",
+        "llmMayAddOperations": False,
+        "llmMayAddTargets": False,
+        "llmMayGrantAuthority": False,
+    }:
+        raise ContractError("TWINLC-AUTHORITY-001", "LLM role expands the declared decision surface")
+    deduplication = closed(doc["deduplication"], {"keyFields", "replayExecutesEffects"})
+    if deduplication["keyFields"] != ["error-code", "target-ref", "finding-digest"]:
+        raise ContractError("TWINLC-EVIDENCE-001", "deduplication key is not evidence-bound")
+    if deduplication["replayExecutesEffects"] is not False:
+        raise ContractError("TWINLC-REPLAY-001", "binding replay cannot execute effects")
+    required_human = {"ambiguous-ownership", "dirty-worktree", "secret-intake", "stash-decision", "unknown-repair-class"}
+    if set(doc["humanDecisionRequiredFor"]) != required_human:
+        raise ContractError("TWINLC-AUTHORITY-001", "unsafe ambiguity must route to human decision")
+    return doc
 
 
 def bind(blueprint: dict[str, Any], doc: dict[str, Any]) -> None:
@@ -504,6 +581,7 @@ def run_all() -> dict[str, Any]:
     validate_lifecycle_profile(blueprint)
     sequential = validate_blueprint(json.loads(VALIDATE_REPAIR_PATH.read_text()))
     sequential_pinned = ref_of(sequential)
+    binding = validate_agent_binding(json.loads(BINDING_PATH.read_text()), sequential)
     sequential_request = {
         "schema": SCHEMA_FAMILY, "kind": "transition-request", "requestId": "request:bind-plesk-target",
         "twinRef": "twin://digitaltwin-run/plesk-service-twin", "blueprint": sequential_pinned,
@@ -557,6 +635,7 @@ def run_all() -> dict[str, Any]:
     check_request: Callable[[dict[str, Any]], Any] = lambda doc: validate_request(doc, blueprint)
     check_state: Callable[[dict[str, Any]], Any] = lambda doc: validate_state(doc, blueprint)
     check_receipt: Callable[[dict[str, Any]], Any] = lambda doc: validate_receipt(doc, blueprint)
+    check_binding: Callable[[dict[str, Any]], Any] = lambda doc: validate_agent_binding(doc, sequential)
 
     def add_stage(doc: dict[str, Any], stage_id: str) -> None:
         doc["stages"].append({
@@ -610,12 +689,21 @@ def run_all() -> dict[str, Any]:
         expect_rejected("sequential-skip-ahead-request", "TWINLC-TRANSITION-001",
                         lambda doc: validate_request(doc, sequential), sequential_request, lambda d: d.update(
                             action="plan", fromStage="inventoried", toStage="planned")),
+        expect_rejected("binding-acts", "TWINLC-AUTHORITY-001", check_binding, binding,
+                        lambda d: d.update(acts=True)),
+        expect_rejected("binding-skip-repair", "TWINLC-SEQUENCE-001", check_binding, binding,
+                        lambda d: d["transitions"].__setitem__(2, {"from": "prioritize", "to": "validate"})),
+        expect_rejected("binding-llm-adds-operation", "TWINLC-AUTHORITY-001", check_binding, binding,
+                        lambda d: d["decision"].update(llmMayAddOperations=True)),
     ]
     rejected.extend(lifecycle_projection_cases(blueprint))
     return {
         "schema": "wellmanifest.twin-lifecycle-conformance/v1",
         "ok": True,
-        "positiveDocuments": 5,
+        "positiveDocuments": 6,
+        "ecosystemBindings": [
+            {"bindingId": binding["bindingId"], "blueprint": binding["blueprintRef"], "acts": binding["acts"]}
+        ],
         "tailoredBlueprints": [sequential_pinned],
         "adversarialRejected": rejected,
         "referenceBlueprint": pinned,

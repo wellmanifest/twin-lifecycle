@@ -133,6 +133,13 @@ graph rules, its request grammar and its conformance suite.
 Steps 1–5 change a governed repository, so they belong to a ticket in
 `subactor/twin`, not to this standard.
 
+For an ecosystem-wide runtime, the prose mapping above is exported as the
+closed data-only profile
+[`standard/binding.subactor-ecosystem.json`](../standard/binding.subactor-ecosystem.json).
+It composes an observational Twin with Doctor, Repair, Validator and protected
+delivery without granting authority. See
+[`ECOSYSTEM_AGENT_BINDING.md`](ECOSYSTEM_AGENT_BINDING.md).
+
 ## Related provenance note
 
 `profiles/generic-twin.json` pins `lifecycle-dsl` to

@@ -1,0 +1,3 @@
+[2026-08-21T07:40:00Z] DESIGN: bound observe -> diagnose -> prioritize -> repair -> validate -> accept to service-observe-repair/v1; acts=false.
+[2026-08-21T07:42:00Z] CONFORMANCE: 6 positive documents PASS; binding acts, skip-repair and LLM-operation adversarial cases rejected with stable TWINLC codes.
+[2026-08-21T07:42:00Z] GOVERNANCE: GOV-PASS (0 errors, 0 warnings) against a793a3a86dd5be76a24d5771cc5657efe9ed58b5.

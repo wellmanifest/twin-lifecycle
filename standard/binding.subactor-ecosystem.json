@@ -1,0 +1,53 @@
+{
+  "schema": "wellmanifest.twin-lifecycle-binding/v1",
+  "kind": "ecosystem-agent-binding",
+  "bindingId": "subactor-ecosystem-observe-repair-validate",
+  "immutable": true,
+  "acts": false,
+  "blueprintRef": {
+    "blueprintId": "service-observe-repair",
+    "version": "v1",
+    "definitionUri": "lifecycle://wellmanifest.com/service-observe-repair/v1",
+    "definitionDigest": "sha256:36aba6a39af52a1d485da3ad48aa7e5fa671472be76090e9fef1ae39bb5b6870",
+    "immutable": true
+  },
+  "stages": [
+    {"id": "observe", "owner": "role:ecosystem-twin", "effect": "read-only", "requires": ["evidence:source-health"]},
+    {"id": "diagnose", "owner": "role:doctor-agent", "effect": "read-only", "requires": ["evidence:snapshot-digest"]},
+    {"id": "prioritize", "owner": "role:ecosystem-twin", "effect": "advisory", "requires": ["evidence:finding-digest", "evidence:deterministic-priority"]},
+    {"id": "repair", "owner": "role:repair-agent", "effect": "external-mutation", "requires": ["evidence:snapshot-digest", "evidence:finding-digest", "evidence:plan-digest", "evidence:authority-grant-digest"]},
+    {"id": "validate", "owner": "role:validator-agent", "effect": "independent-observation", "requires": ["evidence:exact-result-digest"]},
+    {"id": "accept", "owner": "role:protected-delivery", "effect": "protected-effect", "requires": ["evidence:validator-receipt", "evidence:exact-result-digest"]}
+  ],
+  "transitions": [
+    {"from": "observe", "to": "diagnose"},
+    {"from": "diagnose", "to": "prioritize"},
+    {"from": "prioritize", "to": "repair"},
+    {"from": "repair", "to": "validate"},
+    {"from": "validate", "to": "accept"}
+  ],
+  "authority": {
+    "observation": "none-required",
+    "mutation": "external-digest-bound-grant",
+    "acceptance": "independent-exact-result-receipt",
+    "approvalGrantsAuthority": false
+  },
+  "decision": {
+    "mode": "deterministic-first",
+    "llmRole": "rank-equal-declared-candidates-only",
+    "llmMayAddOperations": false,
+    "llmMayAddTargets": false,
+    "llmMayGrantAuthority": false
+  },
+  "deduplication": {
+    "keyFields": ["error-code", "target-ref", "finding-digest"],
+    "replayExecutesEffects": false
+  },
+  "humanDecisionRequiredFor": [
+    "ambiguous-ownership",
+    "dirty-worktree",
+    "secret-intake",
+    "stash-decision",
+    "unknown-repair-class"
+  ]
+}
