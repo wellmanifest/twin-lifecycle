@@ -2,8 +2,8 @@
 
 - **ID**: ticket-008
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
-- **Workflow state**: EDIT
+- **Status**: DONE
+- **Workflow state**: DONE
 - **Created**: 2026-08-21
 
 ## Goal and scope
@@ -18,15 +18,28 @@ does not start agents, controllers, schedulers or repository effects.
 
 ## Acceptance criteria
 
-- [ ] AC-01: The binding pins `service-observe-repair/v1` and declares adjacent
+- [x] AC-01: The binding pins `service-observe-repair/v1` and declares adjacent
   `observe → diagnose → prioritize → repair → validate → accept` stages.
-- [ ] AC-02: Mutation is impossible without an external grant bound to snapshot,
+- [x] AC-02: Mutation is impossible without an external grant bound to snapshot,
   finding and plan digests; validation remains independent.
-- [ ] AC-03: Dirty worktrees, secrets, stash decisions and ambiguous ownership
+- [x] AC-03: Dirty worktrees, secrets, stash decisions and ambiguous ownership
   route to human decision rather than automatic repair.
-- [ ] AC-04: Conformance accepts the profile and rejects authority expansion,
+- [x] AC-04: Conformance accepts the profile and rejects authority expansion,
   skip-ahead and LLM-added operation cases with stable `TWINLC-*` codes.
-- [ ] AC-05: Governance and full lifecycle conformance pass before publication.
+- [x] AC-05: Governance and full lifecycle conformance pass before publication.
+
+## Publication evidence
+
+- Pull request: `wellmanifest/twin-lifecycle#16`.
+- Frozen and approved head: `705308d365b9f2347fa450e67958c1b24d5a6117`.
+- Validator run: `32459412892`; review: `4990902678`.
+- Merge commit: `3518a7f`; merged `2026-08-21T07:38:52Z`.
+- The protected delivery process deleted the remote implementation branch.
+
+## Closure boundary
+
+This governance-only closure records the integrated standard. It changes no
+binding, schema, conformance implementation or authority semantics.
 
 ## Participants
 
