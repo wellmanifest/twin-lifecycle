@@ -48,9 +48,9 @@
       "toRevision": "5cc475f6200df9f8c1d045240277c6eaa2f9a642"
     },
     "budgets": {
-      "maxImplementationFiles": 15,
-      "maxAffectedComponents": 5,
-      "maxPublicInterfaceChanges": 3,
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 1,
       "maxRuntimeDependencies": 0
     },
     "architecture": {
@@ -66,28 +66,18 @@
         {
           "name": "agent-hosts",
           "paths": [
-            "AGENTS.md",
             "CLAUDE.md",
             "GEMINI.md",
             ".cursor/**",
-            ".githooks/**"
-          ]
-        },
-        {
-          "name": "governance-entrypoints",
-          "paths": [
-            "project/governance-check.sh",
-            "project/governance-check.bat",
+            ".githooks/**",
             "scripts/install-agent-hosts.sh",
-            "worktree-guard.yaml",
-            ".github/workflows/new-project-governance.yml"
+            "worktree-guard.yaml"
           ]
         }
       ],
       "responsibilityChanges": false,
       "interfaceChanges": [
-        "CI publishes a second check named governance / enforce",
-        "the repository ships CLAUDE.md, GEMINI.md, a Cursor rule and a fail-closed pre-commit hook"
+        "CI publishes a second check named governance / enforce"
       ],
       "dataChanges": [],
       "ui": {
