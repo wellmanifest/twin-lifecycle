@@ -1,0 +1,6 @@
+2026-08-23 adoption from=16f7aea1 to=5cc475f6 files=28 tool=create_adoption_lock.py
+2026-08-23 gate_reject=GOV-SYNC-001 cause=required_checks_declared_hub_workflow action=write_repository_truth
+2026-08-23 gate_reject=GOV-WORKSTREAM-003 cause=host_paths_unowned action=extend_governance_ownedPaths
+2026-08-23 gate_reject=GOV-DELIVERY-001 cause=S_class_policy files=5 components=2 interfaces=1
+2026-08-23 ci head=3eb81d6b enforce=PASS remote_lifecycle=PASS conformance=PASS
+2026-08-23 merge_sha=14e9161580b7eda4091b457dfb9c4517c0b1ca84

@@ -2,8 +2,8 @@
 
 - **ID**: ticket-009
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
-- **Workflow state**: EDIT
+- **Status**: DONE
+- **Workflow state**: DONE
 - **Utworzono**: 2026-08-23
 
 ## Cel i Zakres
@@ -49,6 +49,16 @@ napisane ręcznie po adopcji:
 - Risk 2: hook odrzuca odtąd commity niezwiązane z ticketem `IN_PROGRESS`.
   Wymaga to `./scripts/install-agent-hosts.sh` raz na klon; sama adopcja
   dostarcza pliki, ale nie ustawia `core.hooksPath` w cudzych klonach.
+
+## Publication evidence
+
+- Pull request: `wellmanifest/twin-lifecycle#18`
+- Frozen and approved head: `3eb81d6b4a0fbfc406520e847aaa87921e159a6a`
+- Merge commit: `14e9161580b7eda4091b457dfb9c4517c0b1ca84`
+- Trusted approval: `ifuri-validator-agent[bot]`.
+- Pre-merge CI on the exact head, first run of the new job in a real adopter:
+  `governance / enforce` success, `governance / remote lifecycle` success,
+  `standards / lifecycle conformance` success.
 
 ## Uczestnicy
 
