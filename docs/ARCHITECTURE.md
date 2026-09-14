@@ -2,12 +2,12 @@
 
 ```dsl
 DOCUMENT TWIN_LIFECYCLE
-VERSION 1
+VERSION 2
 LANGUAGE EN
 MODE STRICT
-SCHEMA "wellmanifest.twin-lifecycle/v1"
-REQUEST_GRAMMAR "twin-lifecycle.v1.gbnf"
-BLUEPRINT "../standard/blueprint.examples.json"
+LIFECYCLE_SCHEMA = "wellmanifest.twin-lifecycle/v1"
+REQUEST_GRAMMAR = "twin-lifecycle.v1.gbnf"
+BLUEPRINT = "../standard/blueprint.examples.json"
 ```
 
 ## Responsibility
@@ -59,21 +59,33 @@ stateDiagram-v2
 ```
 
 ```dsl
-STAGE concept       REPEATABLE false TERMINAL false
-STAGE modeled       REPEATABLE false TERMINAL false
-STAGE validated     REPEATABLE false TERMINAL false
-STAGE released      REPEATABLE false TERMINAL false
-STAGE operating     REPEATABLE true  TERMINAL false
-STAGE evolving      REPEATABLE true  TERMINAL false
-STAGE retired       REPEATABLE false TERMINAL true
+STATE concept
+STATE modeled
+STATE validated
+STATE released
+STATE operating
+STATE evolving
+STATE retired
 
-TRANSITION concept   -> modeled   ACTION model
-TRANSITION modeled   -> validated ACTION validate
-TRANSITION validated -> released  ACTION release   APPROVER role:release-approver
-TRANSITION released  -> operating ACTION operate   APPROVER role:owner
-TRANSITION operating -> evolving  ACTION evolve    APPROVER role:change-approver
-TRANSITION evolving  -> operating ACTION stabilize APPROVER role:change-approver
-TRANSITION operating -> retired   ACTION retire    APPROVER role:owner
+INITIAL_STAGE = concept
+REPEATABLE_STAGES = [operating, evolving]
+TERMINAL_STAGES = [retired]
+
+TRANSITION concept -> modeled WHEN ACTION = model
+TRANSITION modeled -> validated WHEN ACTION = validate
+TRANSITION validated -> released WHEN ACTION = release AND APPROVER_ROLE IN [role:release-approver]
+TRANSITION released -> operating WHEN ACTION = operate AND APPROVER_ROLE IN [role:owner]
+TRANSITION operating -> evolving WHEN ACTION = evolve AND APPROVER_ROLE IN [role:change-approver]
+TRANSITION evolving -> operating WHEN ACTION = stabilize AND APPROVER_ROLE IN [role:change-approver]
+TRANSITION operating -> retired WHEN ACTION = retire AND APPROVER_ROLE IN [role:owner]
+
+RULE TWINLC-RESOLVE-001 TYPE REQUIRED
+WHEN TRANSITION_REQUESTED
+DO REQUIRE (ACTION, FROM_STAGE, TO_STAGE) IN PINNED_BLUEPRINT_TRANSITIONS
+DO REQUIRE EVIDENCE_REFERENCE_FOR_EACH_REQUIRED_CRITERION
+FORBID CARRY_AUTHORITY_REFERENCE_IN_REQUEST
+FORBID APPROVE_BY_TWIN_PERSONA
+ASSERT RECEIPT_AUTHORITY_GRANTED = false
 ```
 
 The reference blueprint is one conforming instance, not the standard. A twin
