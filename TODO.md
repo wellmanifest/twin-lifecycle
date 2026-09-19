@@ -38,5 +38,6 @@
 - [x] [`ticket-008`](project/ticket-008/README.md): export the machine-readable
   ecosystem Twin agent binding for Doctor → Repair → Validator. Status:
   `DONE / DONE`; classification: `FEATURE / P1 / requested`.
+- [ ] [ticket-012](project/ticket-012/README.md): adopt wellmanifest/new-project 0.20.32 governance package and align fleet conformance.
 - [ ] Extend conformance with idempotent-replay receipt cases once a reference
   controller exists to produce them.

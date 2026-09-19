@@ -2,8 +2,8 @@
 
 - **ID**: ticket-011
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
-- **Workflow state**: EDIT
+- **Status**: DONE
+- **Workflow state**: DONE
 - **Created**: 2026-09-13
 
 ## Goal and scope
@@ -26,12 +26,12 @@ change; prose, tables and diagrams stay as explanation of the same contract.
 
 ## Acceptance criteria
 
-- [ ] AC-01: `python3 tests/policy_dsl_check.py validate-markdown` from
+- [x] AC-01: `python3 tests/policy_dsl_check.py validate-markdown` from
   `wellmanifest/policy-dsl@48e95c8` accepts every changed document.
-- [ ] AC-02: The fail-closed carrier selector published in
+- [x] AC-02: The fail-closed carrier selector published in
   `wellmanifest/policy-dsl@d723271` (PR #22) and the checker pinned by
   `wellmanifest/new-project` (`daaf7b7`) also accept every changed document.
-- [ ] AC-03: The DSL projection matches the existing prose, diagrams and
+- [x] AC-03: The DSL projection matches the existing prose, diagrams and
   machine artifacts; the repository governance gate passes.
 
 Cross-repository evidence:
