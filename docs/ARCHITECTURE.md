@@ -153,6 +153,19 @@ roles, both an approver in an accepted role and a `decision://` gate record.
 reject or advance a stage, and a blueprint declares
 `replayExecutesTransitions: false`.
 
+## Native Rust Runtime and Anti-Tamper Isolation
+
+High-performance digital twin sandboxing requires sub-second instantiation,
+CoW filesystem isolation, and defense against runtime reverse engineering:
+- **Rust Core Execution:** Stripped native ELF binaries (`twinerd`, `clonerd-twin`)
+  with Tokio async I/O and RFC 8628 pairing.
+- **OverlayFS Copy-on-Write:** Ephemeral upper directories for instant (<50ms)
+  creation and atomic zero-residue teardown.
+- **Runtime Anti-Debug Guard:** Process introspection (`TracerPid != 0`) and
+  C-ABI guard interface (`libtwinerd_guard.so`) with hardware DRM node binding
+  under `Tomasz Sapletta Prototypowanie.pl`.
+- See [`NATIVE_RUST_TWIN_AND_ANTI_TAMPER.md`](NATIVE_RUST_TWIN_AND_ANTI_TAMPER.md).
+
 ## Diagnostics
 
 | Code | Meaning |

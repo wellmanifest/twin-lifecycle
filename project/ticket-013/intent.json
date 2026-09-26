@@ -1,0 +1,74 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-013",
+  "summary": "Standardize native Rust twin runtime and anti-tamper C-ABI guard",
+  "workstream": "integration",
+  "classification": {
+    "kind": "SERVICE",
+    "priority": "P2",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-013/**",
+    "project/ticket-012/README.md",
+    "TODO.md",
+    "project/TICKETS.md",
+    "docs/ARCHITECTURE.md",
+    "docs/NATIVE_RUST_TWIN_AND_ANTI_TAMPER.md"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "813ea2135d81ed59b9f67e7c2546c5c0755ba874",
+    "targetBranch": "main",
+    "outcome": "Standardize native Rust Twinerd core runtime, zero-copy OverlayFS CoW virtualization, anti-debug ptrace tripwires, and C-ABI validation guard interface.",
+    "nonGoals": [
+      "No breaking changes to generic twin-lifecycle schema"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 30,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add native Rust runtime and anti-tamper C-ABI specifications to twin-lifecycle standard",
+      "components": [
+        {
+          "name": "twin-lifecycle-standard",
+          "paths": [
+            "docs/ARCHITECTURE.md",
+            "docs/NATIVE_RUST_TWIN_AND_ANTI_TAMPER.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert documentation changes."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "./project/governance-check.sh"
+        ],
+        "evidence": "Governance check passes."
+      }
+    ]
+  }
+}
