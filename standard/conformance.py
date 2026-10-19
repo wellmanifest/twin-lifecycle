@@ -29,9 +29,9 @@ LIFECYCLE_PATH = ROOT / "twin-lifecycle.lifecycle"
 LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
 SCHEMA_DIGEST = "98c2d346340aabd4b28ed860c469c3762971040be3aded721d7d6ae6bfb06e4f"
 GRAMMAR_DIGEST = "e8e240b7f89c569de64c4e185dd8a1ce2055bd3b3d189841afaf1783b695d036"
-LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
-LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
-LIFECYCLE_PROFILE_DIGEST = "7a2cf7b57adf599c5af313bd073b8aa66601af936114e51cc9758a49e672d5d5"
+LIFECYCLE_SOURCE_REVISION = "1ea2a90bd5b90a768ad2b36a9c1c330523bc80b4"
+LIFECYCLE_VALIDATOR_DIGEST = "7f7f1c45b7611e186cc640ada69cf2849d16841564c4028b9fc06dd0a05c2b3a"
+LIFECYCLE_PROFILE_DIGEST = "8cb1af012d2debd62feb8ed1fad821d5c95aa832f0f038458c2d0de25bd3129a"
 SCHEMA_FAMILY = "wellmanifest.twin-lifecycle/v1"
 BINDING_FAMILY = "wellmanifest.twin-lifecycle-binding/v1"
 SCHEMA_URI = "https://wellmanifest.com/schemas/twin-lifecycle/v1"
@@ -142,6 +142,8 @@ def validate_lifecycle_profile(
     report = lifecycle.validate_path(profile_path, lifecycle.embedded_catalog())
     if not report.valid or len(report.lifecycles) != 1:
         raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL profile is invalid")
+    if lifecycle.audit_path(profile_path)["finding_count"] != 0:
+        raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL profile has compaction findings")
     model = report.lifecycles[0]
     expected_states = {
         lifecycle_name(str(stage["id"])) for stage in blueprint["stages"]
