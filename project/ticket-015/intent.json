@@ -1,0 +1,76 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-015",
+  "summary": "Validate CLI target paths in conformance",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "regression"
+  },
+  "allowedPaths": [
+    "project/ticket-015/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "standard/conformance.py",
+    "standard/test_conformance_cli.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "7a58e678fff466a4ac25c3ab0a1b9e3bb0b53707",
+    "targetBranch": "main",
+    "outcome": "Validate explicit file and directory CLI targets fail-closed in standard/conformance.py while preserving --all self-conformance.",
+    "nonGoals": [
+      "No changes to twin-lifecycle.schema.json or twin-lifecycle.v1.gbnf"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 2,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Extend standard/conformance.py CLI with positional targets and --blueprint resolution so external blueprints, requests, states, receipts, bindings, and .lifecycle profiles are validated fail-closed.",
+      "components": [
+        {
+          "name": "twin-lifecycle-conformance",
+          "paths": [
+            "standard/conformance.py",
+            "standard/test_conformance_cli.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert standard/conformance.py and standard/test_conformance_cli.py."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 -m unittest standard/test_conformance_cli.py",
+          "python3 standard/conformance.py --all",
+          "./project/governance-check.sh",
+          "wellman check --root ."
+        ],
+        "evidence": "All unit tests, self-conformance checks, governance checks, and Wellman checks pass with exit code 0."
+      }
+    ]
+  }
+}
