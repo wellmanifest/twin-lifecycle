@@ -717,12 +717,192 @@ def run_all() -> dict[str, Any]:
     }
 
 
-def main() -> int:
+SKIP_DIRS = {".git", ".worktrees", ".venv", "__pycache__", "node_modules", ".koru", ".planfile"}
+
+
+def _iter_target_files(target: Path) -> tuple[list[Path], bool]:
+    if not target.exists():
+        raise ContractError("TWINLC-TARGET-001", "target path does not exist")
+    if target.is_file():
+        return [target], True
+    if not target.is_dir():
+        raise ContractError("TWINLC-TARGET-001", "target path is neither a file nor a directory")
+    collected: list[Path] = []
+    for candidate in sorted(target.rglob("*")):
+        rel_parts = candidate.relative_to(target).parts
+        if any(part in SKIP_DIRS for part in rel_parts):
+            continue
+        if candidate.is_file() and candidate.suffix in {".json", ".lifecycle"}:
+            collected.append(candidate)
+    return collected, False
+
+
+def _load_json_object(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ContractError("TWINLC-DOC-001", "invalid JSON document") from error
+    if not isinstance(payload, dict):
+        raise ContractError("TWINLC-DOC-001", "expected a JSON object")
+    return payload
+
+
+def _blueprint_key(ref: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(ref.get("blueprintId", "")),
+        str(ref.get("definitionUri", "")),
+        str(ref.get("definitionDigest", "")),
+    )
+
+
+def validate_targets(
+    targets: list[Path],
+    *,
+    blueprint_paths: list[Path] | None = None,
+) -> dict[str, Any]:
+    """Validate explicit file or directory targets fail-closed against twin-lifecycle contracts."""
+    blueprints: dict[tuple[str, str, str], dict[str, Any]] = {}
+    seed_paths = [BLUEPRINT_PATH, VALIDATE_REPAIR_PATH, *(blueprint_paths or [])]
+    for bp_path in seed_paths:
+        if not bp_path.is_file():
+            raise ContractError("TWINLC-TARGET-001", "supplied blueprint file does not exist")
+        bp = validate_blueprint(_load_json_object(bp_path))
+        blueprints[_blueprint_key(ref_of(bp))] = bp
+
+    expanded: list[tuple[Path, bool]] = []
+    for raw_target in targets:
+        files, explicit_file = _iter_target_files(Path(raw_target))
+        if not files:
+            raise ContractError("TWINLC-TARGET-001", "no twin-lifecycle documents found under target")
+        for item in files:
+            expanded.append((item, explicit_file))
+
+    pending_docs: list[tuple[Path, dict[str, Any]]] = []
+    checked: list[dict[str, str]] = []
+    findings: list[dict[str, str]] = []
+    lifecycle_mod: Any | None = None
+
+    for file_path, explicit_file in expanded:
+        if file_path.suffix == ".lifecycle":
+            try:
+                if digest(LIFECYCLE_VALIDATOR_PATH.read_bytes()) != LIFECYCLE_VALIDATOR_DIGEST:
+                    raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle validator digest mismatch")
+                if lifecycle_mod is None:
+                    lifecycle_mod = load_pinned_lifecycle()
+                report = lifecycle_mod.validate_path(file_path, lifecycle_mod.embedded_catalog())
+                if not report.valid or not report.lifecycles:
+                    raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL profile is invalid")
+                if lifecycle_mod.audit_path(file_path)["finding_count"] != 0:
+                    raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL profile has compaction findings")
+                checked.append({"path": str(file_path), "kind": "lifecycle-dsl"})
+            except ContractError as error:
+                findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
+            continue
+
+        try:
+            doc = _load_json_object(file_path)
+        except ContractError as error:
+            if explicit_file:
+                findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
+            continue
+
+        schema_id = doc.get("schema")
+        if not explicit_file and schema_id not in {SCHEMA_FAMILY, BINDING_FAMILY}:
+            continue
+
+        if schema_id == SCHEMA_FAMILY and doc.get("kind") == "lifecycle-blueprint":
+            try:
+                bp = validate_blueprint(doc)
+                blueprints[_blueprint_key(ref_of(bp))] = bp
+                checked.append({"path": str(file_path), "kind": "lifecycle-blueprint"})
+            except ContractError as error:
+                findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
+        else:
+            pending_docs.append((file_path, doc))
+
+    for file_path, doc in pending_docs:
+        kind = str(doc.get("kind", ""))
+        schema_id = doc.get("schema")
+        try:
+            if schema_id == BINDING_FAMILY and kind == "ecosystem-agent-binding":
+                bp_ref = blueprint_ref(doc.get("blueprintRef"))
+                bp = blueprints.get(_blueprint_key(bp_ref))
+                if bp is None:
+                    raise ContractError("TWINLC-BLUEPRINT-001", "referenced blueprint revision is not loaded")
+                validate_agent_binding(doc, bp)
+            elif schema_id == SCHEMA_FAMILY and kind in {"transition-request", "lifecycle-state", "transition-receipt"}:
+                bp_ref = blueprint_ref(doc.get("blueprint"))
+                bp = blueprints.get(_blueprint_key(bp_ref))
+                if bp is None:
+                    raise ContractError("TWINLC-BLUEPRINT-001", "referenced blueprint revision is not loaded")
+                if kind == "transition-request":
+                    validate_request(doc, bp)
+                elif kind == "lifecycle-state":
+                    validate_state(doc, bp)
+                else:
+                    validate_receipt(doc, bp)
+            else:
+                raise ContractError("TWINLC-DOC-001", "unsupported twin-lifecycle document family or kind")
+            checked.append({"path": str(file_path), "kind": kind})
+        except ContractError as error:
+            findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
+
+    if not checked and not findings:
+        raise ContractError("TWINLC-TARGET-001", "no twin-lifecycle documents matched under target")
+
+    return {
+        "schema": "wellmanifest.twin-lifecycle-conformance/v1",
+        "ok": len(findings) == 0,
+        "checkedCount": len(checked),
+        "checkedTargets": checked,
+        "findings": findings,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="wellmanifest.twin-lifecycle/v1 conformance")
-    parser.add_argument("--all", action="store_true")
-    parser.parse_args()
-    print(json.dumps(run_all(), indent=2, sort_keys=True))
-    return 0
+    parser.add_argument("targets", nargs="*", help="Optional twin-lifecycle file or directory paths to validate")
+    parser.add_argument("--all", action="store_true", help="Run built-in positive and adversarial conformance suite")
+    parser.add_argument(
+        "--blueprint",
+        action="append",
+        default=[],
+        help="Additional immutable blueprint JSON path(s) used to resolve target documents",
+    )
+    args = parser.parse_args(argv)
+
+    if not args.targets:
+        print(json.dumps(run_all(), indent=2, sort_keys=True))
+        return 0
+
+    try:
+        target_report = validate_targets(
+            [Path(item) for item in args.targets],
+            blueprint_paths=[Path(item) for item in args.blueprint],
+        )
+        if args.all:
+            suite_report = run_all()
+            combined = {
+                **suite_report,
+                "ok": bool(suite_report["ok"] and target_report["ok"]),
+                "checkedCount": target_report["checkedCount"],
+                "checkedTargets": target_report["checkedTargets"],
+                "findings": target_report["findings"],
+            }
+            print(json.dumps(combined, indent=2, sort_keys=True))
+            return 0 if combined["ok"] else 1
+        print(json.dumps(target_report, indent=2, sort_keys=True))
+        return 0 if target_report["ok"] else 1
+    except ContractError as error:
+        failure = {
+            "schema": "wellmanifest.twin-lifecycle-conformance/v1",
+            "ok": False,
+            "checkedCount": 0,
+            "checkedTargets": [],
+            "findings": [{"path": ",".join(args.targets), "code": error.code, "message": str(error)}],
+        }
+        print(json.dumps(failure, indent=2, sort_keys=True))
+        return 1
 
 
 if __name__ == "__main__":
