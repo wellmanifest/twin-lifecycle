@@ -1,0 +1,95 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-017",
+  "summary": "Harden directory target duplicate-key scan and expand CLI conformance tests",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-016/README.md",
+    "project/ticket-017/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "pyproject.toml",
+    "standard/conformance.py",
+    "standard/test_conformance_cli.py",
+    "standard/twin_targets.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "240c7bce18414e71f94204db3d7d63d86c611c7c",
+    "targetBranch": "main",
+    "outcome": "Fail closed on duplicate-key or malformed twin-lifecycle JSON files during directory target scans, return structured JSON on self-suite ContractError, expand CLI/unit conformance tests without ruff ignore overrides, and close merged ticket-016.",
+    "nonGoals": [
+      "Do not modify frozen twin-lifecycle JSON schema, GBNF grammar, blueprint, binding, or .lifecycle profile digests",
+      "No runtime dependency additions"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 4,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 1
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Detect probable twin-lifecycle documents on JSON parse failure in twin_targets.py so directory scans record TWINLC-DOC-001 findings instead of skipping malformed or duplicate-key twin artifacts.",
+      "components": [
+        {
+          "name": "twin-lifecycle-conformance",
+          "paths": [
+            "pyproject.toml",
+            "standard/conformance.py",
+            "standard/test_conformance_cli.py",
+            "standard/twin_targets.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the ticket branch commit or close the pull request before merge."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py --all"
+        ],
+        "evidence": "project/ticket-017/README.md"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "ruff check --no-cache standard",
+          "python3 -m pytest -q"
+        ],
+        "evidence": "project/ticket-017/README.md"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh --base origin/main",
+          "wellman check"
+        ],
+        "evidence": "project/ticket-017/README.md"
+      }
+    ]
+  }
+}

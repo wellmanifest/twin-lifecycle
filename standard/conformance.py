@@ -444,10 +444,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--blueprint", action="append", default=[])
     args = parser.parse_args(argv)
-    if not args.targets:
-        print(json.dumps(run_all(), indent=2, sort_keys=True))
-        return 0
     try:
+        if not args.targets:
+            print(json.dumps(run_all(), indent=2, sort_keys=True))
+            return 0
         target_report = validate_targets(
             [Path(item) for item in args.targets],
             blueprint_paths=[Path(item) for item in args.blueprint],
@@ -466,14 +466,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(target_report, indent=2, sort_keys=True))
         return 0 if target_report["ok"] else 1
     except ContractError as error:
+        target_label = ",".join(args.targets) if args.targets else "<self-suite>"
         failure = {
             "schema": "wellmanifest.twin-lifecycle-conformance/v1",
             "ok": False,
             "checkedCount": 0,
             "checkedTargets": [],
-            "findings": [
-                {"path": ",".join(args.targets), "code": error.code, "message": str(error)}
-            ],
+            "findings": [{"path": target_label, "code": error.code, "message": str(error)}],
         }
         print(json.dumps(failure, indent=2, sort_keys=True))
         return 1

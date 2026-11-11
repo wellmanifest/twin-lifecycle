@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -156,16 +157,32 @@ def _iter_target_files(target: Path) -> tuple[list[Path], bool]:
     return collected, False
 
 
-def _load_json_object(path: Path) -> dict[str, Any]:
+def _parse_json_object(raw_text: str) -> dict[str, Any]:
     try:
-        payload = strict_loads(path.read_text(encoding="utf-8"))
+        payload = strict_loads(raw_text)
     except ContractError:
         raise
-    except (OSError, ValueError) as error:
+    except ValueError as error:
         raise ContractError("TWINLC-DOC-001", "invalid JSON document") from error
     if not isinstance(payload, dict):
         raise ContractError("TWINLC-DOC-001", "expected a JSON object")
     return payload
+
+
+def _load_json_object(path: Path) -> dict[str, Any]:
+    try:
+        raw_text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ContractError("TWINLC-DOC-001", "invalid JSON document") from error
+    return _parse_json_object(raw_text)
+
+
+def _is_probable_twin_json_text(raw_text: str) -> bool:
+    try:
+        parsed = json.loads(raw_text)
+    except ValueError:
+        return SCHEMA_FAMILY in raw_text or BINDING_FAMILY in raw_text
+    return isinstance(parsed, dict) and parsed.get("schema") in {SCHEMA_FAMILY, BINDING_FAMILY}
 
 
 def _blueprint_key(ref: dict[str, Any]) -> tuple[str, str, str]:
@@ -221,9 +238,20 @@ def validate_targets_impl(
                 findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
             continue
         try:
-            doc = _load_json_object(file_path)
+            raw_text = file_path.read_text(encoding="utf-8")
+        except OSError as error:
+            findings.append(
+                {
+                    "path": str(file_path),
+                    "code": "TWINLC-DOC-001",
+                    "message": f"unreadable JSON document: {error}",
+                }
+            )
+            continue
+        try:
+            doc = _parse_json_object(raw_text)
         except ContractError as error:
-            if explicit_file:
+            if explicit_file or _is_probable_twin_json_text(raw_text):
                 findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
             continue
         schema_id = doc.get("schema")
