@@ -44,8 +44,11 @@ from twin_primitives import (  # noqa: E402
     canonical,
     closed,
     digest,
+    enum_str,
     match,
     non_neg_int,
+    read_regular_bytes,
+    read_regular_utf8,
     ref_of,
     refs,
     reject_sensitive,
@@ -251,8 +254,12 @@ def validate_request(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
         match("revision" if name == "baseRevision" else name, doc[name])
     actor = closed(doc["requestedBy"], {"actorRef", "actorClass"})
     match("actorRef", actor["actorRef"])
-    if actor["actorClass"] not in {"human", "service", "twin-persona"}:
-        raise ContractError("TWINLC-DOC-001", "unknown actor class")
+    enum_str(
+        actor["actorClass"],
+        {"human", "service", "twin-persona"},
+        "TWINLC-DOC-001",
+        "unknown actor class",
+    )
     if doc["gateDecisionRef"] is not None:
         match("decisionRef", doc["gateDecisionRef"])
     rule = resolve(blueprint, doc["action"], doc["fromStage"], doc["toStage"])
@@ -273,8 +280,12 @@ def validate_state(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
     match("twinRef", doc["twinRef"])
     if doc["derivedFrom"] != "event-stream" or doc["replayExecutedEffects"] is not False:
         raise ContractError("TWINLC-REPLAY-001", "a projection is rebuilt by observation only")
-    if doc["currentStage"] not in {stage["id"] for stage in blueprint["stages"]}:
-        raise ContractError("TWINLC-GRAPH-001", "current stage is not declared by the blueprint")
+    enum_str(
+        doc["currentStage"],
+        {stage["id"] for stage in blueprint["stages"]},
+        "TWINLC-GRAPH-001",
+        "current stage is not declared by the blueprint",
+    )
     non_neg_int(doc["aggregateVersion"], "invalid aggregate version")
     if doc["lastTransitionId"] is not None:
         match("transitionId", doc["lastTransitionId"])
@@ -299,14 +310,13 @@ def validate_receipt(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
         )
     if doc["secretsRedacted"] is not True:
         raise ContractError("TWINLC-SECRET-001", "a receipt must be redacted")
-    if doc["status"] not in STATUSES:
-        raise ContractError("TWINLC-DOC-001", "unknown transition status")
+    status = enum_str(doc["status"], STATUSES, "TWINLC-DOC-001", "unknown transition status")
     if doc["gateDecisionRef"] is not None:
         match("decisionRef", doc["gateDecisionRef"])
     rule = resolve(blueprint, doc["action"], doc["fromStage"], doc["toStage"])
     refs(doc["evidenceRefs"], "evidenceRef", minimum=0, maximum=32)
     unmet = refs(doc["unmetCriteria"], "criterion", minimum=0, maximum=32)
-    if doc["status"] in UNMET_REQUIRED_STATUSES:
+    if status in UNMET_REQUIRED_STATUSES:
         refs(doc["eventRefs"], "eventRef", minimum=0, maximum=32)
         if not unmet or doc["approvedBy"] is not None:
             raise ContractError(
@@ -314,7 +324,7 @@ def validate_receipt(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
                 "a blocked or rejected transition records unmet criteria and no approver",
             )
         return
-    if doc["status"] == "REQUESTED":
+    if status == "REQUESTED":
         refs(doc["eventRefs"], "eventRef", minimum=0, maximum=32)
         if doc["approvedBy"] is not None:
             raise ContractError(
@@ -333,14 +343,18 @@ def validate_receipt(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
     if rule["approverRoles"]:
         approver = closed(doc["approvedBy"], {"actorRef", "actorClass", "role"})
         match("actorRef", approver["actorRef"])
-        if approver["actorClass"] not in {"human", "service"}:
-            raise ContractError(
-                "TWINLC-AUTHORITY-001", "a twin persona cannot approve its own lifecycle gate"
-            )
-        if approver["role"] not in rule["approverRoles"]:
-            raise ContractError(
-                "TWINLC-AUTHORITY-001", "approver role is not accepted for this transition"
-            )
+        enum_str(
+            approver["actorClass"],
+            {"human", "service"},
+            "TWINLC-AUTHORITY-001",
+            "a twin persona cannot approve its own lifecycle gate",
+        )
+        enum_str(
+            approver["role"],
+            set(rule["approverRoles"]),
+            "TWINLC-AUTHORITY-001",
+            "approver role is not accepted for this transition",
+        )
         if doc["gateDecisionRef"] is None:
             raise ContractError(
                 "TWINLC-AUTHORITY-001", "an approved gate must reference its decision record"
@@ -349,15 +363,17 @@ def validate_receipt(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
         approver = closed(doc["approvedBy"], {"actorRef", "actorClass", "role"})
         match("actorRef", approver["actorRef"])
         match("role", approver["role"])
-        if approver["actorClass"] not in {"human", "service"}:
-            raise ContractError(
-                "TWINLC-AUTHORITY-001", "a twin persona cannot approve its own lifecycle gate"
-            )
+        enum_str(
+            approver["actorClass"],
+            {"human", "service"},
+            "TWINLC-AUTHORITY-001",
+            "a twin persona cannot approve its own lifecycle gate",
+        )
 
 
 def run_all() -> dict[str, Any]:
-    schema = strict_loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    grammar = GRAMMAR_PATH.read_bytes()
+    schema = strict_loads(read_regular_utf8(SCHEMA_PATH))
+    grammar = read_regular_bytes(GRAMMAR_PATH)
     if digest(canonical(schema)) != SCHEMA_DIGEST or digest(grammar) != GRAMMAR_DIGEST:
         raise ContractError("TWINLC-BLUEPRINT-001", "contract digest mismatch")
     if schema.get("$id") != SCHEMA_URI:
@@ -374,13 +390,11 @@ def run_all() -> dict[str, Any]:
     ):
         if forbidden in lowered:
             raise ContractError("TWINLC-SECRET-001", "unsafe grammar surface")
-    blueprint = validate_blueprint(strict_loads(BLUEPRINT_PATH.read_text(encoding="utf-8")))
+    blueprint = validate_blueprint(strict_loads(read_regular_utf8(BLUEPRINT_PATH)))
     validate_lifecycle_profile(blueprint)
-    sequential = validate_blueprint(strict_loads(VALIDATE_REPAIR_PATH.read_text(encoding="utf-8")))
+    sequential = validate_blueprint(strict_loads(read_regular_utf8(VALIDATE_REPAIR_PATH)))
     sequential_pinned = ref_of(sequential)
-    binding = validate_agent_binding(
-        strict_loads(BINDING_PATH.read_text(encoding="utf-8")), sequential
-    )
+    binding = validate_agent_binding(strict_loads(read_regular_utf8(BINDING_PATH)), sequential)
     pinned = ref_of(blueprint)
     seq_req, request, state, receipt = _fx.build_positive_documents(pinned, sequential_pinned)
     validate_request(seq_req, sequential)
