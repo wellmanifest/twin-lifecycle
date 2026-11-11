@@ -14,7 +14,6 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "standard/lifecycle*.py" = ["E501"]
-"standard/test_conformance_cli.py" = ["E501", "UP035"]
 
 [tool.wellmanifest]
 standard = "0.20.32"
