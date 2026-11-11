@@ -14,11 +14,13 @@ from twin_io import (
     MAX_INPUT_BYTES,
     MAX_JSON_DEPTH,
     MAX_JSON_INT_ABS,
+    MAX_JSON_INT_DIGITS,
     SAFE_ASSERTIONS,
     SECRET_MATERIAL,
     SENSITIVE,
     ContractError,
     _enforce_json_bounds,
+    bounded_intent,
     canonical,
     digest,
     has_symlink_ancestor,
@@ -47,6 +49,7 @@ __all__ = [
     "MAX_INPUT_BYTES",
     "MAX_JSON_DEPTH",
     "MAX_JSON_INT_ABS",
+    "MAX_JSON_INT_DIGITS",
     "MAX_LENGTHS",
     "PATTERNS",
     "RECEIPT_KEYS",
@@ -68,6 +71,7 @@ __all__ = [
     "_enforce_json_bounds",
     "bind",
     "blueprint_ref",
+    "bounded_intent",
     "canonical",
     "closed",
     "digest",
@@ -83,10 +87,13 @@ __all__ = [
     "ref_of",
     "refs",
     "reject_sensitive",
+    "resolve",
     "strict_bool",
     "strict_loads",
     "timestamp_value",
     "validate_lifecycle_profile",
+    "validate_request",
+    "validate_state",
     "verify_lifecycle_validator_digests",
 ]
 
@@ -406,3 +413,61 @@ def bind(blueprint: dict[str, Any], doc: dict[str, Any]) -> None:
             "TWINLC-BLUEPRINT-001",
             "blueprint revision binding does not match the pinned definition",
         )
+
+
+def resolve(blueprint: dict[str, Any], action: Any, source: Any, target: Any) -> dict[str, Any]:
+    for rule in blueprint["transitions"]:
+        if (rule["action"], rule["from"], rule["to"]) == (action, source, target):
+            return rule
+    raise ContractError(
+        "TWINLC-TRANSITION-001", "the requested transition is not declared by the blueprint"
+    )
+
+
+def validate_request(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
+    doc = closed(doc, REQUEST_KEYS)
+    reject_sensitive(doc)
+    if doc["schema"] != SCHEMA_FAMILY or doc["kind"] != "transition-request":
+        raise ContractError("TWINLC-DOC-001", "wrong document family")
+    blueprint_ref(doc["blueprint"])
+    bind(blueprint, doc)
+    for name in ("requestId", "twinRef", "baseRevision", "idempotencyKey"):
+        match("revision" if name == "baseRevision" else name, doc[name])
+    actor = closed(doc["requestedBy"], {"actorRef", "actorClass"})
+    match("actorRef", actor["actorRef"])
+    enum_str(
+        actor["actorClass"],
+        {"human", "service", "twin-persona"},
+        "TWINLC-DOC-001",
+        "unknown actor class",
+    )
+    if doc["gateDecisionRef"] is not None:
+        match("decisionRef", doc["gateDecisionRef"])
+    rule = resolve(blueprint, doc["action"], doc["fromStage"], doc["toStage"])
+    evidence = refs(doc["evidenceRefs"], "evidenceRef", minimum=1, maximum=32)
+    if len(evidence) < len(rule["requiredCriteria"]):
+        raise ContractError(
+            "TWINLC-EVIDENCE-001", "each required criterion needs its own evidence reference"
+        )
+
+
+def validate_state(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
+    doc = closed(doc, STATE_KEYS)
+    reject_sensitive(doc)
+    if doc["schema"] != SCHEMA_FAMILY or doc["kind"] != "lifecycle-state":
+        raise ContractError("TWINLC-DOC-001", "wrong document family")
+    blueprint_ref(doc["blueprint"])
+    bind(blueprint, doc)
+    match("twinRef", doc["twinRef"])
+    if doc["derivedFrom"] != "event-stream" or doc["replayExecutedEffects"] is not False:
+        raise ContractError("TWINLC-REPLAY-001", "a projection is rebuilt by observation only")
+    enum_str(
+        doc["currentStage"],
+        {stage["id"] for stage in blueprint["stages"]},
+        "TWINLC-GRAPH-001",
+        "current stage is not declared by the blueprint",
+    )
+    non_neg_int(doc["aggregateVersion"], "invalid aggregate version")
+    if doc["lastTransitionId"] is not None:
+        match("transitionId", doc["lastTransitionId"])
+    refs(doc["unmetCriteria"], "criterion", minimum=0, maximum=32)

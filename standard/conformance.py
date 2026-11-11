@@ -28,19 +28,18 @@ from twin_primitives import (  # noqa: E402
     LIFECYCLE_VALIDATOR_DIGESTS,
     LIFECYCLE_VALIDATOR_PATH,
     RECEIPT_KEYS,
-    REQUEST_KEYS,
     SCHEMA_DIGEST,
     SCHEMA_FAMILY,
     SCHEMA_PATH,
     SCHEMA_URI,
     SEQUENTIAL_BLUEPRINT_ID,
-    STATE_KEYS,
     STATUSES,
     UNMET_REQUIRED_STATUSES,
     VALIDATE_REPAIR_PATH,
     ContractError,
     bind,
     blueprint_ref,
+    bounded_intent,
     canonical,
     closed,
     digest,
@@ -52,10 +51,13 @@ from twin_primitives import (  # noqa: E402
     ref_of,
     refs,
     reject_sensitive,
+    resolve,
     strict_bool,
     strict_loads,
     timestamp_value,
     validate_lifecycle_profile,
+    validate_request,
+    validate_state,
 )
 from twin_targets import SKIP_DIRS, validate_agent_binding, validate_targets_impl  # noqa: E402
 
@@ -93,9 +95,9 @@ __all__ = [
 
 def validate_blueprint(doc: dict[str, Any]) -> dict[str, Any]:
     doc = closed(doc, BLUEPRINT_KEYS, optional={"intent"})
-    reject_sensitive({k: v for k, v in doc.items() if k != "intent"})
-    if "intent" in doc and (not isinstance(doc["intent"], str) or len(doc["intent"]) > 240):
-        raise ContractError("TWINLC-DOC-001", "invalid blueprint intent")
+    reject_sensitive(doc)
+    if "intent" in doc:
+        bounded_intent(doc["intent"], "blueprint intent")
     if doc["schema"] != SCHEMA_FAMILY or doc["kind"] != "lifecycle-blueprint":
         raise ContractError("TWINLC-DOC-001", "wrong document family")
     if doc["immutable"] is not True:
@@ -130,10 +132,8 @@ def validate_blueprint(doc: dict[str, Any]) -> dict[str, Any]:
             },
             optional={"intent"},
         )
-        if "intent" in stage and (
-            not isinstance(stage["intent"], str) or len(stage["intent"]) > 240
-        ):
-            raise ContractError("TWINLC-DOC-001", "invalid stage intent")
+        if "intent" in stage:
+            bounded_intent(stage["intent"], "stage intent")
         stage_id = match("stageId", stage["id"])
         if stage_id in stages:
             raise ContractError("TWINLC-GRAPH-001", "duplicate stage identity")
@@ -232,64 +232,6 @@ def validate_blueprint(doc: dict[str, Any]) -> dict[str, Any]:
                     "TWINLC-SEQUENCE-001", "a sequential blueprint cannot skip a forward stage"
                 )
     return doc
-
-
-def resolve(blueprint: dict[str, Any], action: Any, source: Any, target: Any) -> dict[str, Any]:
-    for rule in blueprint["transitions"]:
-        if (rule["action"], rule["from"], rule["to"]) == (action, source, target):
-            return rule
-    raise ContractError(
-        "TWINLC-TRANSITION-001", "the requested transition is not declared by the blueprint"
-    )
-
-
-def validate_request(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
-    doc = closed(doc, REQUEST_KEYS)
-    reject_sensitive(doc)
-    if doc["schema"] != SCHEMA_FAMILY or doc["kind"] != "transition-request":
-        raise ContractError("TWINLC-DOC-001", "wrong document family")
-    blueprint_ref(doc["blueprint"])
-    bind(blueprint, doc)
-    for name in ("requestId", "twinRef", "baseRevision", "idempotencyKey"):
-        match("revision" if name == "baseRevision" else name, doc[name])
-    actor = closed(doc["requestedBy"], {"actorRef", "actorClass"})
-    match("actorRef", actor["actorRef"])
-    enum_str(
-        actor["actorClass"],
-        {"human", "service", "twin-persona"},
-        "TWINLC-DOC-001",
-        "unknown actor class",
-    )
-    if doc["gateDecisionRef"] is not None:
-        match("decisionRef", doc["gateDecisionRef"])
-    rule = resolve(blueprint, doc["action"], doc["fromStage"], doc["toStage"])
-    evidence = refs(doc["evidenceRefs"], "evidenceRef", minimum=1, maximum=32)
-    if len(evidence) < len(rule["requiredCriteria"]):
-        raise ContractError(
-            "TWINLC-EVIDENCE-001", "each required criterion needs its own evidence reference"
-        )
-
-
-def validate_state(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
-    doc = closed(doc, STATE_KEYS)
-    reject_sensitive(doc)
-    if doc["schema"] != SCHEMA_FAMILY or doc["kind"] != "lifecycle-state":
-        raise ContractError("TWINLC-DOC-001", "wrong document family")
-    blueprint_ref(doc["blueprint"])
-    bind(blueprint, doc)
-    match("twinRef", doc["twinRef"])
-    if doc["derivedFrom"] != "event-stream" or doc["replayExecutedEffects"] is not False:
-        raise ContractError("TWINLC-REPLAY-001", "a projection is rebuilt by observation only")
-    enum_str(
-        doc["currentStage"],
-        {stage["id"] for stage in blueprint["stages"]},
-        "TWINLC-GRAPH-001",
-        "current stage is not declared by the blueprint",
-    )
-    non_neg_int(doc["aggregateVersion"], "invalid aggregate version")
-    if doc["lastTransitionId"] is not None:
-        match("transitionId", doc["lastTransitionId"])
-    refs(doc["unmetCriteria"], "criterion", minimum=0, maximum=32)
 
 
 def validate_receipt(doc: dict[str, Any], blueprint: dict[str, Any]) -> None:
@@ -460,7 +402,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if not args.targets:
-            print(json.dumps(run_all(), indent=2, sort_keys=True))
+            print(json.dumps(run_all(), indent=2, sort_keys=True, allow_nan=False))
             return 0
         target_report = validate_targets(
             [Path(item) for item in args.targets],
@@ -475,9 +417,9 @@ def main(argv: list[str] | None = None) -> int:
                 "checkedTargets": target_report["checkedTargets"],
                 "findings": target_report["findings"],
             }
-            print(json.dumps(combined, indent=2, sort_keys=True))
+            print(json.dumps(combined, indent=2, sort_keys=True, allow_nan=False))
             return 0 if combined["ok"] else 1
-        print(json.dumps(target_report, indent=2, sort_keys=True))
+        print(json.dumps(target_report, indent=2, sort_keys=True, allow_nan=False))
         return 0 if target_report["ok"] else 1
     except ContractError as error:
         target_label = ",".join(args.targets) if args.targets else "<self-suite>"
@@ -488,7 +430,7 @@ def main(argv: list[str] | None = None) -> int:
             "checkedTargets": [],
             "findings": [{"path": target_label, "code": error.code, "message": str(error)}],
         }
-        print(json.dumps(failure, indent=2, sort_keys=True))
+        print(json.dumps(failure, indent=2, sort_keys=True, allow_nan=False))
         return 1
 
 
