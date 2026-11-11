@@ -19,6 +19,7 @@ from twin_primitives import (
     ContractError,
     blueprint_ref,
     closed,
+    has_symlink_ancestor,
     load_pinned_lifecycle,
     match,
     read_regular_utf8,
@@ -138,6 +139,8 @@ def validate_agent_binding(doc: dict[str, Any], blueprint: dict[str, Any]) -> di
 
 
 def _iter_target_files(target: Path) -> tuple[list[Path], bool]:
+    if has_symlink_ancestor(target):
+        raise ContractError("TWINLC-TARGET-001", "symbolic link target is forbidden")
     raw_target = os.fspath(target)
     try:
         st = os.lstat(raw_target)

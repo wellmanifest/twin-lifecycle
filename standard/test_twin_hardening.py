@@ -106,6 +106,70 @@ class TwinLifecycleHardeningTests(unittest.TestCase):
         with self.assertRaises(tp.ContractError):
             conformance.validate_request(bad_key, self.bp)
 
+    def test_int_overflow_surrogates_secret_keys_ancestor_symlinks_and_ref_bounds(self) -> None:
+        for raw in (
+            '{"x": ' + "9" * 500 + "}",
+            '{"x": -' + "9" * 500 + "}",
+            '{"x": ' + "9" * 5000 + "}",
+            r'{"x": "\ud800"}',
+            r'{"\udfff": 1}',
+            '{"x": "\ud800"}',
+            "{malformed",
+        ):
+            with self.subTest(raw=raw[:24]), self.assertRaises(tp.ContractError) as ctx:
+                tp.strict_loads(raw)
+            self.assertEqual(ctx.exception.code, "TWINLC-DOC-001")
+
+        for bad_val in ({"x": 10**400}, {"x": "\ud800"}, {"\ud800": 1}):
+            with self.assertRaises(tp.ContractError):
+                tp.canonical(bad_val)
+
+        canary_key = "gh" + "p_" + ("X9y8Z7" * 5)
+        with self.assertRaises(tp.ContractError) as sec_ctx:
+            tp.reject_sensitive({canary_key: "v"})
+        self.assertEqual(sec_ctx.exception.code, "TWINLC-SECRET-001")
+        for bad_utf8 in ({"\ud800": "v"}, {"safe": "\udfff"}):
+            with self.assertRaises(tp.ContractError) as utf_ctx:
+                tp.reject_sensitive(bad_utf8)
+            self.assertEqual(utf_ctx.exception.code, "TWINLC-DOC-001")
+
+        for name, bad_ref in (
+            ("blueprintId", "bp-1\n"),
+            ("artifact", "artifact:foo::bar"),
+            ("artifact", "artifact:foo:..:bar"),
+            ("artifact", "artifact:foo:.:bar"),
+            ("artifact", "artifact:foo:"),
+            ("twinRef", "twin://./item"),
+            ("twinRef", "twin://../item"),
+            ("twinRef", "twin://wellmanifest.com/a::b"),
+            ("twinRef", "twin://wellmanifest.com/a:..:b"),
+            ("actorRef", "actor://wellmanifest.com/op:..:v1"),
+        ):
+            with self.subTest(ref=bad_ref), self.assertRaises(tp.ContractError) as ref_ctx:
+                tp.match(name, bad_ref)
+            self.assertEqual(ref_ctx.exception.code, "TWINLC-REF-001")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            real_dir = base / "real" / "nested"
+            real_dir.mkdir(parents=True)
+            doc_path = real_dir / "req.json"
+            doc_path.write_text(json.dumps(self.req), encoding="utf-8")
+
+            for bad_max in (0, -1, True, False):
+                with self.assertRaises(tp.ContractError):
+                    tp.read_regular_bytes(doc_path, max_bytes=bad_max)  # type: ignore[arg-type]
+
+            sym_dir = base / "sym_dir"
+            sym_dir.symlink_to(base / "real")
+            deep_sym = sym_dir / "nested" / "req.json"
+            with self.assertRaises(tp.ContractError) as sym_ctx:
+                tp.read_regular_utf8(deep_sym)
+            self.assertEqual(sym_ctx.exception.code, "TWINLC-TARGET-001")
+            code_cli, report_cli = self._run_cli(str(sym_dir / "nested"))
+            self.assertEqual(code_cli, 1)
+            self.assertFalse(report_cli["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()
