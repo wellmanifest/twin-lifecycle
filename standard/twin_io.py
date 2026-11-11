@@ -15,7 +15,8 @@ from typing import Any
 
 MAX_INPUT_BYTES = 4 * 1024 * 1024
 MAX_JSON_DEPTH = 64
-MAX_JSON_INT_ABS = 10**400 - 1
+MAX_JSON_INT_DIGITS = 400
+MAX_JSON_INT_ABS = 10**MAX_JSON_INT_DIGITS - 1
 
 SENSITIVE = re.compile(
     r"(?:shell|argv|command|password|passwd|token|secret|credential|api[-_]?key|cookie|"
@@ -51,18 +52,44 @@ def is_valid_utf8(value: str) -> bool:
 
 
 def has_symlink_ancestor(path: Path) -> bool:
-    ancestors = (
-        [anc for anc in path.parents if anc != Path(".")]
-        if not path.is_absolute()
-        else [anc for anc in path.parents if len(anc.parts) > 2]
-    )
-    for anc in ancestors:
+    raw = os.fspath(path)
+    raw_parts = Path(raw).parts
+    start_idx = 3 if os.path.isabs(raw) else 1
+    for idx in range(start_idx, len(raw_parts)):
+        prefix = Path(*raw_parts[:idx])
+        if prefix.parts and all(part in {".", ".."} for part in prefix.parts):
+            continue
         try:
-            if anc.is_symlink():
+            if stat.S_ISLNK(os.lstat(prefix).st_mode):
                 return True
+        except FileNotFoundError:
+            break
+        except OSError:
+            return True
+    normalized = Path(os.path.abspath(raw))
+    for anc in normalized.parents:
+        if len(anc.parts) <= 2:
+            continue
+        try:
+            if stat.S_ISLNK(os.lstat(anc).st_mode):
+                return True
+        except FileNotFoundError:
+            continue
         except OSError:
             return True
     return False
+
+
+def bounded_intent(value: Any, label: str = "intent") -> str:
+    if (
+        not isinstance(value, str)
+        or not is_valid_utf8(value)
+        or not value.strip()
+        or len(value) > 240
+        or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+    ):
+        raise ContractError("TWINLC-DOC-001", f"invalid {label}")
+    return value
 
 
 def _check_json_scalar(value: Any) -> None:
@@ -192,12 +219,22 @@ def strict_loads(raw: str) -> Any:
             raise ContractError("TWINLC-DOC-001", "JSON float out of finite IEEE-754 range")
         return parsed
 
+    def _parse_bounded_int(token: str) -> int:
+        digits = token[1:] if token.startswith(("+", "-")) else token
+        if len(digits) > MAX_JSON_INT_DIGITS:
+            raise ContractError("TWINLC-DOC-001", "JSON integer out of range")
+        parsed = int(token)
+        if abs(parsed) > MAX_JSON_INT_ABS:
+            raise ContractError("TWINLC-DOC-001", "JSON integer out of range")
+        return parsed
+
     try:
         data = json.loads(
             raw,
             object_pairs_hook=_unique_pairs,
             parse_constant=_reject_constant,
             parse_float=_parse_finite_float,
+            parse_int=_parse_bounded_int,
         )
     except ContractError:
         raise

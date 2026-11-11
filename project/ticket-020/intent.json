@@ -1,0 +1,95 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-020",
+  "summary": "Modularize conformance and harden symlink traversal, JSON bounds, and intent secret/control checks",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-019/README.md",
+    "project/ticket-020/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "standard/conformance.py",
+    "standard/twin_io.py",
+    "standard/twin_primitives.py",
+    "standard/test_twin_hardening.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "a14eadbce7bd9a4be266747ea3b2258abf8a753f",
+    "targetBranch": "main",
+    "outcome": "Move resolve, validate_request, and validate_state into standard/twin_primitives.py (re-exported from standard/conformance.py) so conformance.py drops well below 500 lines, harden has_symlink_ancestor against relative and un-normalized symlink-parent traversal, bound JSON integer digits before int() conversion, scan blueprint intent for secret material and control characters, enforce allow_nan=False in CLI output, expand test_twin_hardening.py, and mark merged ticket-019 DONE.",
+    "nonGoals": [
+      "Do not modify vendored standard/lifecycle*.py or frozen schema/grammar/profile/blueprint digests",
+      "No runtime dependency additions"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 6,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Rebalance request/state validators into standard/twin_primitives.py with full re-exports in standard/conformance.py while hardening symlink-ancestor, JSON integer digit, and blueprint/stage intent validation in standard/twin_io.py.",
+      "components": [
+        {
+          "name": "twin-lifecycle-conformance",
+          "paths": [
+            "standard/conformance.py",
+            "standard/twin_io.py",
+            "standard/twin_primitives.py",
+            "standard/test_twin_hardening.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the ticket branch commit via protected PR delivery."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py"
+        ],
+        "evidence": "project/ticket-020/README.md"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "ruff check --no-cache standard",
+          "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q"
+        ],
+        "evidence": "project/ticket-020/README.md"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh --base origin/main",
+          "wellman check"
+        ],
+        "evidence": "project/ticket-020/README.md"
+      }
+    ]
+  }
+}

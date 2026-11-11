@@ -170,6 +170,60 @@ class TwinLifecycleHardeningTests(unittest.TestCase):
             self.assertEqual(code_cli, 1)
             self.assertFalse(report_cli["ok"])
 
+            sibling = base / "sibling"
+            sibling.mkdir()
+            prev_cwd = Path.cwd()
+            try:
+                os.chdir(base)
+                for rel_sym in (
+                    Path("sym_dir/nested/req.json"),
+                    Path("sym_dir/../real/nested/req.json"),
+                ):
+                    with self.assertRaises(tp.ContractError) as rel_ctx:
+                        tp.read_regular_utf8(rel_sym)
+                    self.assertEqual(rel_ctx.exception.code, "TWINLC-TARGET-001")
+                os.chdir(sibling)
+                with self.assertRaises(tp.ContractError) as sib_ctx:
+                    tp.read_regular_utf8(Path("../sym_dir/nested/req.json"))
+                self.assertEqual(sib_ctx.exception.code, "TWINLC-TARGET-001")
+            finally:
+                os.chdir(prev_cwd)
+
+            unnorm_abs = Path(f"{base}/sym_dir/../real/nested/req.json")
+            with self.assertRaises(tp.ContractError) as unnorm_ctx:
+                tp.read_regular_utf8(unnorm_abs)
+            self.assertEqual(unnorm_ctx.exception.code, "TWINLC-TARGET-001")
+
+    def test_blueprint_intent_secrets_controls_int_digits_and_module_budget(self) -> None:
+        for bad_int in ('{"x": ' + "9" * 401 + "}", '{"x": -' + "1" + "0" * 400 + "}"):
+            with self.assertRaises(tp.ContractError) as int_ctx:
+                tp.strict_loads(bad_int)
+            self.assertEqual(int_ctx.exception.code, "TWINLC-DOC-001")
+
+        leaked_pat = "gh" + "p_" + ("B" * 26)
+        bp_leaked = copy.deepcopy(self.bp)
+        bp_leaked["intent"] = f"Blueprint with {leaked_pat}"
+        with self.assertRaises(tp.ContractError) as sec_ctx:
+            conformance.validate_blueprint(bp_leaked)
+        self.assertEqual(sec_ctx.exception.code, "TWINLC-SECRET-001")
+
+        for bad_intent in ("", "   ", "line1\nline2", "bad\x00intent", "bad\x7fintent", "\ud800"):
+            bp_bad = copy.deepcopy(self.bp)
+            bp_bad["intent"] = bad_intent
+            with self.assertRaises(tp.ContractError) as bp_ctx:
+                conformance.validate_blueprint(bp_bad)
+            self.assertEqual(bp_ctx.exception.code, "TWINLC-DOC-001")
+
+            stage_bad = copy.deepcopy(self.bp)
+            stage_bad["stages"][0]["intent"] = bad_intent
+            with self.assertRaises(tp.ContractError) as st_ctx:
+                conformance.validate_blueprint(stage_bad)
+            self.assertEqual(st_ctx.exception.code, "TWINLC-DOC-001")
+
+        for py_file in sorted(conformance.ROOT.glob("*.py")):
+            lines = len(py_file.read_text(encoding="utf-8").splitlines())
+            self.assertLess(lines, 500, f"{py_file} has {lines} lines")
+
 
 if __name__ == "__main__":
     unittest.main()
