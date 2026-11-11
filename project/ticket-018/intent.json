@@ -1,0 +1,95 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-018",
+  "summary": "Harden twin-lifecycle regular-file I/O, URI segments, JSON bounds, and unhashable guards",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-017/README.md",
+    "project/ticket-018/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "standard/twin_primitives.py",
+    "standard/twin_targets.py",
+    "standard/conformance.py",
+    "standard/test_twin_hardening.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "7254875e2aeeb822502d9681ae36bbb812125bef",
+    "targetBranch": "main",
+    "outcome": "Enforce O_NOFOLLOW | O_NONBLOCK regular-file reads, URI segment traversal guards, strict JSON float/depth/key bounds, iterative secret scanning, and unhashable enum/schema guards across standard/twin_primitives.py, standard/twin_targets.py, and standard/conformance.py, add standard/test_twin_hardening.py, and close merged ticket-017.",
+    "nonGoals": [
+      "Do not modify vendored standard/lifecycle*.py or frozen schema/grammar/profile/blueprint digests",
+      "No runtime dependency additions"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Keep zero-dependency twin-lifecycle conformance in standard/twin_primitives.py, standard/twin_targets.py, and standard/conformance.py under 500 lines while hardening regular-file descriptor checks, URI path segments, strict JSON bounds, iterative sensitive-field traversal, and unhashable enum/schema checks.",
+      "components": [
+        {
+          "name": "twin-lifecycle-conformance",
+          "paths": [
+            "standard/twin_primitives.py",
+            "standard/twin_targets.py",
+            "standard/conformance.py",
+            "standard/test_twin_hardening.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the ticket branch commit or close the pull request before merge."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py"
+        ],
+        "evidence": "project/ticket-018/README.md"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "ruff check --no-cache standard",
+          "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q"
+        ],
+        "evidence": "project/ticket-018/README.md"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh --base origin/main",
+          "wellman check"
+        ],
+        "evidence": "project/ticket-018/README.md"
+      }
+    ]
+  }
+}

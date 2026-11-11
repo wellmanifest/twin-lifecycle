@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,7 @@ from twin_primitives import (
     closed,
     load_pinned_lifecycle,
     match,
+    read_regular_utf8,
     ref_of,
     reject_sensitive,
     strict_loads,
@@ -135,24 +138,28 @@ def validate_agent_binding(doc: dict[str, Any], blueprint: dict[str, Any]) -> di
 
 
 def _iter_target_files(target: Path) -> tuple[list[Path], bool]:
-    if target.is_symlink():
+    raw_target = os.fspath(target)
+    try:
+        st = os.lstat(raw_target)
+    except OSError as err:
+        raise ContractError("TWINLC-TARGET-001", "target path does not exist") from err
+    if stat.S_ISLNK(st.st_mode):
         raise ContractError("TWINLC-TARGET-001", "symbolic link target is forbidden")
-    if not target.exists():
-        raise ContractError("TWINLC-TARGET-001", "target path does not exist")
-    if target.is_file():
+    if stat.S_ISREG(st.st_mode):
         return [target], True
-    if not target.is_dir():
+    if not stat.S_ISDIR(st.st_mode):
         raise ContractError("TWINLC-TARGET-001", "target path is neither a file nor a directory")
     collected: list[Path] = []
     for candidate in sorted(target.rglob("*")):
         rel_parts = candidate.relative_to(target).parts
         if any(part in SKIP_DIRS for part in rel_parts):
             continue
-        if candidate.is_symlink():
+        cst = os.lstat(candidate)
+        if stat.S_ISLNK(cst.st_mode):
             raise ContractError(
                 "TWINLC-TARGET-001", "symbolic link inside target directory is forbidden"
             )
-        if candidate.is_file() and candidate.suffix in {".json", ".lifecycle"}:
+        if stat.S_ISREG(cst.st_mode) and candidate.suffix in {".json", ".lifecycle"}:
             collected.append(candidate)
     return collected, False
 
@@ -169,20 +176,20 @@ def _parse_json_object(raw_text: str) -> dict[str, Any]:
     return payload
 
 
-def _load_json_object(path: Path) -> dict[str, Any]:
-    try:
-        raw_text = path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise ContractError("TWINLC-DOC-001", "invalid JSON document") from error
+def _load_json_object(path: Path, *, error_code: str = "TWINLC-DOC-001") -> dict[str, Any]:
+    raw_text = read_regular_utf8(path, error_code=error_code)
     return _parse_json_object(raw_text)
 
 
 def _is_probable_twin_json_text(raw_text: str) -> bool:
     try:
         parsed = json.loads(raw_text)
-    except ValueError:
+    except (ValueError, RecursionError):
         return SCHEMA_FAMILY in raw_text or BINDING_FAMILY in raw_text
-    return isinstance(parsed, dict) and parsed.get("schema") in {SCHEMA_FAMILY, BINDING_FAMILY}
+    if not isinstance(parsed, dict):
+        return False
+    schema_val = parsed.get("schema")
+    return isinstance(schema_val, str) and schema_val in {SCHEMA_FAMILY, BINDING_FAMILY}
 
 
 def _blueprint_key(ref: dict[str, Any]) -> tuple[str, str, str]:
@@ -204,13 +211,11 @@ def validate_targets_impl(
 ) -> dict[str, Any]:
     blueprints: dict[tuple[str, str, str], dict[str, Any]] = {}
     for bp_path in [BLUEPRINT_PATH, VALIDATE_REPAIR_PATH, *(blueprint_paths or [])]:
-        if bp_path.is_symlink() or not bp_path.is_file():
-            raise ContractError("TWINLC-TARGET-001", "supplied blueprint file does not exist")
-        bp = validate_blueprint_fn(_load_json_object(bp_path))
+        bp = validate_blueprint_fn(_load_json_object(bp_path, error_code="TWINLC-TARGET-001"))
         blueprints[_blueprint_key(ref_of(bp))] = bp
     expanded: list[tuple[Path, bool]] = []
     for raw_target in targets:
-        files, explicit_file = _iter_target_files(Path(raw_target))
+        files, explicit_file = _iter_target_files(Path(os.path.abspath(os.fspath(raw_target))))
         if not files:
             raise ContractError(
                 "TWINLC-TARGET-001", "no twin-lifecycle documents found under target"
@@ -238,15 +243,9 @@ def validate_targets_impl(
                 findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
             continue
         try:
-            raw_text = file_path.read_text(encoding="utf-8")
-        except OSError as error:
-            findings.append(
-                {
-                    "path": str(file_path),
-                    "code": "TWINLC-DOC-001",
-                    "message": f"unreadable JSON document: {error}",
-                }
-            )
+            raw_text = read_regular_utf8(file_path, error_code="TWINLC-DOC-001")
+        except ContractError as error:
+            findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
             continue
         try:
             doc = _parse_json_object(raw_text)
@@ -255,9 +254,12 @@ def validate_targets_impl(
                 findings.append({"path": str(file_path), "code": error.code, "message": str(error)})
             continue
         schema_id = doc.get("schema")
-        if not explicit_file and schema_id not in {SCHEMA_FAMILY, BINDING_FAMILY}:
+        raw_kind = doc.get("kind")
+        if not explicit_file and (
+            not isinstance(schema_id, str) or schema_id not in {SCHEMA_FAMILY, BINDING_FAMILY}
+        ):
             continue
-        if schema_id == SCHEMA_FAMILY and doc.get("kind") == "lifecycle-blueprint":
+        if schema_id == SCHEMA_FAMILY and raw_kind == "lifecycle-blueprint":
             try:
                 bp = validate_blueprint_fn(doc)
                 blueprints[_blueprint_key(ref_of(bp))] = bp
@@ -267,9 +269,14 @@ def validate_targets_impl(
         else:
             pending_docs.append((file_path, doc))
     for file_path, doc in pending_docs:
-        kind = str(doc.get("kind", ""))
+        raw_kind = doc.get("kind")
+        kind = raw_kind if isinstance(raw_kind, str) else ""
         schema_id = doc.get("schema")
         try:
+            if not isinstance(schema_id, str):
+                raise ContractError(
+                    "TWINLC-DOC-001", "unsupported twin-lifecycle document family or kind"
+                )
             if schema_id == BINDING_FAMILY and kind == "ecosystem-agent-binding":
                 bp = blueprints.get(_blueprint_key(blueprint_ref(doc.get("blueprintRef"))))
                 if bp is None:
