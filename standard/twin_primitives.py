@@ -3,22 +3,94 @@
 
 from __future__ import annotations
 
-import errno
-import hashlib
 import importlib.util
-import json
-import math
-import os
 import re
-import stat
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from twin_io import (
+    MAX_INPUT_BYTES,
+    MAX_JSON_DEPTH,
+    MAX_JSON_INT_ABS,
+    SAFE_ASSERTIONS,
+    SECRET_MATERIAL,
+    SENSITIVE,
+    ContractError,
+    _enforce_json_bounds,
+    canonical,
+    digest,
+    has_symlink_ancestor,
+    is_valid_utf8,
+    read_regular_bytes,
+    read_regular_utf8,
+    reject_sensitive,
+    strict_loads,
+)
+
+__all__ = [
+    "BINDING_FAMILY",
+    "BINDING_KEYS",
+    "BINDING_PATH",
+    "BLUEPRINT_KEYS",
+    "BLUEPRINT_PATH",
+    "ContractError",
+    "GRAMMAR_DIGEST",
+    "GRAMMAR_PATH",
+    "LIFECYCLE_PATH",
+    "LIFECYCLE_PROFILE_DIGEST",
+    "LIFECYCLE_SOURCE_REVISION",
+    "LIFECYCLE_VALIDATOR_DIGEST",
+    "LIFECYCLE_VALIDATOR_DIGESTS",
+    "LIFECYCLE_VALIDATOR_PATH",
+    "MAX_INPUT_BYTES",
+    "MAX_JSON_DEPTH",
+    "MAX_JSON_INT_ABS",
+    "MAX_LENGTHS",
+    "PATTERNS",
+    "RECEIPT_KEYS",
+    "REQUEST_KEYS",
+    "ROOT",
+    "SAFE_ASSERTIONS",
+    "SCHEMA_DIGEST",
+    "SCHEMA_FAMILY",
+    "SCHEMA_PATH",
+    "SCHEMA_URI",
+    "SECRET_MATERIAL",
+    "SENSITIVE",
+    "SEQUENTIAL_BLUEPRINT_ID",
+    "STATE_KEYS",
+    "STATUSES",
+    "TIMESTAMP_RE",
+    "UNMET_REQUIRED_STATUSES",
+    "VALIDATE_REPAIR_PATH",
+    "_enforce_json_bounds",
+    "bind",
+    "blueprint_ref",
+    "canonical",
+    "closed",
+    "digest",
+    "enum_str",
+    "has_symlink_ancestor",
+    "is_valid_utf8",
+    "lifecycle_name",
+    "load_pinned_lifecycle",
+    "match",
+    "non_neg_int",
+    "read_regular_bytes",
+    "read_regular_utf8",
+    "ref_of",
+    "refs",
+    "reject_sensitive",
+    "strict_bool",
+    "strict_loads",
+    "timestamp_value",
+    "validate_lifecycle_profile",
+    "verify_lifecycle_validator_digests",
+]
+
 ROOT = Path(__file__).resolve().parent
-MAX_INPUT_BYTES = 4 * 1024 * 1024
-MAX_JSON_DEPTH = 64
 SCHEMA_PATH = ROOT / "twin-lifecycle.schema.json"
 GRAMMAR_PATH = ROOT / "twin-lifecycle.v1.gbnf"
 BLUEPRINT_PATH = ROOT / "blueprint.examples.json"
@@ -123,24 +195,24 @@ BINDING_KEYS = {
 STATUSES = {"REQUESTED", "APPROVED", "BLOCKED", "REJECTED"}
 UNMET_REQUIRED_STATUSES = {"BLOCKED", "REJECTED"}
 PATTERNS = {
-    "blueprintId": r"^[a-z][a-z0-9._-]{0,63}\Z",
-    "blueprintVersion": r"^v[1-9][0-9]*\Z",
-    "actionId": r"^[a-z][a-z0-9-]{0,47}\Z",
-    "artifact": r"^artifact:[a-z][a-z0-9._:-]{0,127}\Z",
-    "requestId": r"^request:[a-z0-9][a-z0-9._-]{0,95}\Z",
-    "transitionId": r"^transition:[a-z0-9][a-z0-9._-]{0,95}\Z",
-    "idempotencyKey": r"^idempotency:[a-z0-9][a-z0-9._-]{0,95}\Z",
-    "twinRef": r"^twin://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+\Z",
-    "definitionUri": r"^lifecycle://[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9._-]*/v[1-9][0-9]*\Z",
-    "definitionDigest": r"^sha256:[0-9a-f]{64}\Z",
-    "evidenceRef": r"^evidence://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+/r[1-9][0-9]*\Z",
-    "decisionRef": r"^decision://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+\Z",
-    "eventRef": r"^event://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+\Z",
-    "actorRef": r"^actor://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:-]+\Z",
-    "revision": r"^(?:[0-9a-f]{40}|sha256:[0-9a-f]{64})\Z",
-    "stageId": r"^[a-z][a-z0-9-]{0,47}\Z",
-    "criterion": r"^criterion:[a-z][a-z0-9._-]{0,63}\Z",
-    "role": r"^role:[a-z][a-z0-9._-]{0,63}\Z",
+    "blueprintId": r"\A[a-z][a-z0-9._-]{0,63}\Z",
+    "blueprintVersion": r"\Av[1-9][0-9]*\Z",
+    "actionId": r"\A[a-z][a-z0-9-]{0,47}\Z",
+    "artifact": r"\Aartifact:[a-z][a-z0-9._:-]{0,127}\Z",
+    "requestId": r"\Arequest:[a-z0-9][a-z0-9._-]{0,95}\Z",
+    "transitionId": r"\Atransition:[a-z0-9][a-z0-9._-]{0,95}\Z",
+    "idempotencyKey": r"\Aidempotency:[a-z0-9][a-z0-9._-]{0,95}\Z",
+    "twinRef": r"\Atwin://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+\Z",
+    "definitionUri": r"\Alifecycle://[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9._-]*/v[1-9][0-9]*\Z",
+    "definitionDigest": r"\Asha256:[0-9a-f]{64}\Z",
+    "evidenceRef": r"\Aevidence://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+/r[1-9][0-9]*\Z",
+    "decisionRef": r"\Adecision://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+\Z",
+    "eventRef": r"\Aevent://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:/-]+\Z",
+    "actorRef": r"\Aactor://[a-z0-9][a-z0-9.-]*/[A-Za-z0-9._:-]+\Z",
+    "revision": r"\A(?:[0-9a-f]{40}|sha256:[0-9a-f]{64})\Z",
+    "stageId": r"\A[a-z][a-z0-9-]{0,47}\Z",
+    "criterion": r"\Acriterion:[a-z][a-z0-9._-]{0,63}\Z",
+    "role": r"\Arole:[a-z][a-z0-9._-]{0,63}\Z",
 }
 MAX_LENGTHS = {
     "twinRef": 320,
@@ -151,160 +223,9 @@ MAX_LENGTHS = {
     "actorRef": 240,
 }
 TIMESTAMP_RE = re.compile(
-    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
     r"(?:\.[0-9]{1,9})?(?:Z|[+-][0-9]{2}:[0-9]{2})\Z"
 )
-SENSITIVE = re.compile(
-    r"(?:shell|argv|command|password|passwd|token|secret|credential|api[-_]?key|cookie|"
-    r"private[-_]?key|remote|url|score|proposal|simulation|verdict|prompt)",
-    re.I,
-)
-SECRET_MATERIAL = re.compile(
-    r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bgh[pousr]_[A-Za-z0-9]{20,}|"
-    r"\bgithub_pat_[A-Za-z0-9_]{20,}|\bsk-[A-Za-z0-9_-]{20,}|"
-    r"\bAKIA[0-9A-Z]{16}\b|"
-    r"(?:password|passwd|token|secret|api[-_]?key)\s*[:=]\s*[^\s,;]{4,})",
-    re.I,
-)
-SAFE_ASSERTIONS = {"secretsRedacted"}
-
-
-class ContractError(ValueError):
-    """A bounded rejection that never repeats untrusted document content."""
-
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(f"{code}: {message}")
-        self.code = code
-
-
-def _enforce_json_bounds(root: Any, *, max_depth: int = MAX_JSON_DEPTH) -> None:
-    stack: list[tuple[Any, int]] = [(root, 0)]
-    while stack:
-        current, depth = stack.pop()
-        if depth > max_depth:
-            raise ContractError("TWINLC-DOC-001", "JSON nesting depth exceeded")
-        if isinstance(current, float) and not math.isfinite(current):
-            raise ContractError("TWINLC-DOC-001", "non-finite JSON float is forbidden")
-        if isinstance(current, dict):
-            next_depth = depth + 1
-            if next_depth > max_depth and current:
-                raise ContractError("TWINLC-DOC-001", "JSON nesting depth exceeded")
-            for key, child in current.items():
-                if not isinstance(key, str):
-                    raise ContractError("TWINLC-DOC-001", "JSON object key must be a string")
-                if isinstance(child, (dict, list, float)):
-                    stack.append((child, next_depth))
-        elif isinstance(current, list):
-            next_depth = depth + 1
-            if next_depth > max_depth and current:
-                raise ContractError("TWINLC-DOC-001", "JSON nesting depth exceeded")
-            for child in current:
-                if isinstance(child, (dict, list, float)):
-                    stack.append((child, next_depth))
-
-
-def read_regular_bytes(
-    path: str | Path,
-    *,
-    max_bytes: int = MAX_INPUT_BYTES,
-    error_code: str = "TWINLC-DOC-001",
-) -> bytes:
-    raw_path = os.fspath(path)
-    try:
-        st = os.lstat(raw_path)
-    except OSError as err:
-        raise ContractError(error_code, "target path cannot be read") from err
-    if stat.S_ISLNK(st.st_mode):
-        raise ContractError("TWINLC-TARGET-001", "symbolic link target is forbidden")
-    if not stat.S_ISREG(st.st_mode):
-        raise ContractError(error_code, "input must be a regular file")
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-    try:
-        fd = os.open(raw_path, flags)
-    except OSError as err:
-        if err.errno == errno.ELOOP:
-            raise ContractError("TWINLC-TARGET-001", "symbolic link target is forbidden") from err
-        raise ContractError(error_code, "target path cannot be opened") from err
-    try:
-        fst = os.fstat(fd)
-        if not stat.S_ISREG(fst.st_mode) or (st.st_dev, st.st_ino) != (fst.st_dev, fst.st_ino):
-            raise ContractError(error_code, "input must be an unchanged regular file")
-        if fst.st_size > max_bytes:
-            raise ContractError("TWINLC-DOC-001", "JSON document exceeds maximum size")
-        chunks: list[bytes] = []
-        total = 0
-        while True:
-            chunk = os.read(fd, min(65536, max_bytes + 1 - total))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            total += len(chunk)
-            if total > max_bytes:
-                raise ContractError("TWINLC-DOC-001", "JSON document exceeds maximum size")
-        return b"".join(chunks)
-    finally:
-        os.close(fd)
-
-
-def read_regular_utf8(
-    path: str | Path,
-    *,
-    max_bytes: int = MAX_INPUT_BYTES,
-    error_code: str = "TWINLC-DOC-001",
-) -> str:
-    raw = read_regular_bytes(path, max_bytes=max_bytes, error_code=error_code)
-    try:
-        return raw.decode("utf-8")
-    except UnicodeDecodeError as err:
-        raise ContractError("TWINLC-DOC-001", "invalid UTF-8 JSON document") from err
-
-
-def strict_loads(raw: str) -> Any:
-    if not isinstance(raw, str):
-        raise ContractError("TWINLC-DOC-001", "JSON input must be text")
-    if len(raw.encode("utf-8", errors="surrogatepass")) > MAX_INPUT_BYTES:
-        raise ContractError("TWINLC-DOC-001", "JSON document exceeds maximum size")
-
-    def _unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-        obj: dict[str, Any] = {}
-        for key, val in pairs:
-            if not isinstance(key, str):
-                raise ContractError("TWINLC-DOC-001", "JSON object key must be a string")
-            if key in obj:
-                raise ContractError("TWINLC-DOC-001", "duplicate JSON key")
-            obj[key] = val
-        return obj
-
-    def _reject_constant(token: str) -> Any:
-        raise ContractError("TWINLC-DOC-001", "non-finite JSON constant is forbidden")
-
-    def _parse_finite_float(token: str) -> float:
-        parsed = float(token)
-        if not math.isfinite(parsed):
-            raise ContractError("TWINLC-DOC-001", "JSON float out of finite IEEE-754 range")
-        return parsed
-
-    try:
-        data = json.loads(
-            raw,
-            object_pairs_hook=_unique_pairs,
-            parse_constant=_reject_constant,
-            parse_float=_parse_finite_float,
-        )
-    except ContractError:
-        raise
-    except RecursionError as err:
-        raise ContractError("TWINLC-DOC-001", "JSON nesting depth exceeded") from err
-    _enforce_json_bounds(data)
-    return data
-
-
-def canonical(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-
-
-def digest(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def lifecycle_name(value: str) -> str:
@@ -325,12 +246,16 @@ def load_pinned_lifecycle(validator_path: Path = LIFECYCLE_VALIDATOR_PATH) -> An
 
 
 def verify_lifecycle_validator_digests(validator_path: Path = LIFECYCLE_VALIDATOR_PATH) -> None:
-    if digest(validator_path.read_bytes()) != LIFECYCLE_VALIDATOR_DIGEST:
+    if (
+        digest(read_regular_bytes(validator_path, error_code="TWINLC-BLUEPRINT-001"))
+        != LIFECYCLE_VALIDATOR_DIGEST
+    ):
         raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle validator digest mismatch")
     for filename, expected_sha in LIFECYCLE_VALIDATOR_DIGESTS.items():
         if filename == "lifecycle.py":
             continue
-        if digest((ROOT / filename).read_bytes()) != expected_sha:
+        helper_bytes = read_regular_bytes(ROOT / filename, error_code="TWINLC-BLUEPRINT-001")
+        if digest(helper_bytes) != expected_sha:
             raise ContractError(
                 "TWINLC-BLUEPRINT-001", f"pinned lifecycle helper digest mismatch: {filename}"
             )
@@ -343,7 +268,10 @@ def validate_lifecycle_profile(
     profile_path: Path = LIFECYCLE_PATH,
 ) -> None:
     verify_lifecycle_validator_digests(validator_path)
-    if digest(profile_path.read_bytes()) != LIFECYCLE_PROFILE_DIGEST:
+    if (
+        digest(read_regular_bytes(profile_path, error_code="TWINLC-BLUEPRINT-001"))
+        != LIFECYCLE_PROFILE_DIGEST
+    ):
         raise ContractError("TWINLC-BLUEPRINT-001", "pinned lifecycle profile digest mismatch")
     lc = load_pinned_lifecycle(validator_path)
     report = lc.validate_path(profile_path, lc.embedded_catalog())
@@ -375,30 +303,10 @@ def validate_lifecycle_profile(
         raise ContractError("TWINLC-GRAPH-001", "Lifecycle DSL terminal stage mismatch")
 
 
-def reject_sensitive(value: Any) -> None:
-    stack: list[tuple[Any, int]] = [(value, 0)]
-    while stack:
-        current, depth = stack.pop()
-        if depth > MAX_JSON_DEPTH:
-            raise ContractError("TWINLC-DOC-001", "JSON nesting depth exceeded")
-        if isinstance(current, dict):
-            for key, nested in current.items():
-                if not isinstance(key, str):
-                    raise ContractError("TWINLC-DOC-001", "JSON object key must be a string")
-                if key not in SAFE_ASSERTIONS and SENSITIVE.search(key):
-                    raise ContractError("TWINLC-SECRET-001", "unsafe key")
-                stack.append((nested, depth + 1))
-        elif isinstance(current, list):
-            for nested in current:
-                stack.append((nested, depth + 1))
-        elif isinstance(current, str) and SECRET_MATERIAL.search(current):
-            raise ContractError("TWINLC-SECRET-001", "credential material is forbidden")
-
-
 def closed(doc: Any, keys: set[str], optional: set[str] | None = None) -> dict[str, Any]:
     if not isinstance(doc, dict):
         raise ContractError("TWINLC-DOC-001", "expected an object")
-    if any(not isinstance(k, str) for k in doc):
+    if any(not isinstance(k, str) or not is_valid_utf8(k) for k in doc):
         raise ContractError("TWINLC-DOC-001", "JSON object key must be a string")
     optional_keys = optional or set()
     if set(doc) - keys or (keys - optional_keys) - set(doc):
@@ -416,14 +324,19 @@ def match(name: str, value: Any) -> str:
     max_len = MAX_LENGTHS.get(name)
     if (
         not isinstance(value, str)
+        or not is_valid_utf8(value)
         or (max_len is not None and len(value) > max_len)
         or not re.fullmatch(PATTERNS[name], value)
     ):
         raise ContractError("TWINLC-REF-001", f"invalid reference: {name}")
     if "://" in value:
-        segments = value.split("://", 1)[1].split("/")
-        if any(seg in {"", ".", ".."} for seg in segments):
+        host, _, rest = value.split("://", 1)[1].partition("/")
+        if host in {"", ".", ".."} or any(
+            seg in {"", ".", ".."} for seg in re.split(r"[/:]", rest)
+        ):
             raise ContractError("TWINLC-REF-001", f"invalid reference: {name}")
+    elif ":" in value and any(seg in {"", ".", ".."} for seg in value.split(":")):
+        raise ContractError("TWINLC-REF-001", f"invalid reference: {name}")
     return value
 
 

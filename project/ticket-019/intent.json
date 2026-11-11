@@ -1,0 +1,95 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-019",
+  "summary": "Modularize twin_io and harden JSON overflow/surrogates, ancestor symlinks, secret keys, and ref bounds",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-018/README.md",
+    "project/ticket-019/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "standard/twin_io.py",
+    "standard/twin_primitives.py",
+    "standard/twin_targets.py",
+    "standard/test_twin_hardening.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "75347a1365e81f6571844080fd9f9775fd7a7a82",
+    "targetBranch": "main",
+    "outcome": "Extract standard/twin_io.py so twin_primitives.py drops well below 500 lines, reject 10**400 and 4300+ digit JSON integers, malformed JSON, lone UTF-16 surrogates, secret-bearing JSON keys, relative and deep absolute symlink ancestors, unanchored regexes, and colon/dot reference traversal with ContractError, expand test_twin_hardening.py, and close merged ticket-018.",
+    "nonGoals": [
+      "Do not modify vendored standard/lifecycle*.py or frozen schema/grammar/profile/blueprint digests",
+      "No runtime dependency additions"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 6,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Extract regular-file I/O, JSON/UTF-8 bounds, and secret-material scanning into standard/twin_io.py and re-export from standard/twin_primitives.py so all modules remain well below 500 lines.",
+      "components": [
+        {
+          "name": "twin-lifecycle-conformance",
+          "paths": [
+            "standard/twin_io.py",
+            "standard/twin_primitives.py",
+            "standard/twin_targets.py",
+            "standard/test_twin_hardening.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the ticket branch commit via protected PR delivery."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py"
+        ],
+        "evidence": "project/ticket-019/README.md"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "ruff check --no-cache standard",
+          "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q"
+        ],
+        "evidence": "project/ticket-019/README.md"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh --base origin/main",
+          "wellman check"
+        ],
+        "evidence": "project/ticket-019/README.md"
+      }
+    ]
+  }
+}
