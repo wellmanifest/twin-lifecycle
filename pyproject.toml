@@ -1,6 +1,6 @@
 [project]
 name = "wellmanifest-twin-lifecycle"
-version = "0.1.0.dev0"
+version = "0.3.0-dev"
 description = "Wellmanifest twin-lifecycle v1 conformance validator"
 requires-python = ">=3.11"
 dependencies = []
